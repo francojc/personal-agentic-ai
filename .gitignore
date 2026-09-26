@@ -9,3 +9,6 @@ workspace/
 
 # TSDProxy writes runtime config/state here.
 config/tsdproxy/tsdproxy.yaml
+
+# Slide build output.
+slides/dist/

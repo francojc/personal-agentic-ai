@@ -1,0 +1,211 @@
+/* @theme workshop */
+/* Blue theme for the Personal Agentic AI workshop deck. */
+
+@import 'default';
+
+section {
+  background: #F7F8FC;
+  color: #18263C;
+  font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif;
+  font-size: 26px;
+  line-height: 1.35;
+  padding: 56px 68px;
+}
+
+section::after {
+  color: #596980;
+  font-size: 15px;
+}
+
+header,
+footer {
+  color: #596980;
+  font-size: 15px;
+}
+
+h1 {
+  color: #1B3A6B;
+  font-size: 44px;
+}
+
+h2 {
+  color: #1B3A6B;
+  font-size: 34px;
+}
+
+h3 {
+  color: #3266C7;
+  font-size: 26px;
+}
+
+a,
+strong {
+  color: #1B3A6B;
+}
+
+code {
+  background: #EAF1FF;
+  color: #1B3A6B;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+
+pre {
+  background: #0F1E33;
+  border-radius: 10px;
+}
+
+pre code {
+  background: transparent;
+  color: #E6EDF7;
+}
+
+blockquote {
+  border-left: 5px solid #3266C7;
+  background: #EAF1FF;
+  padding: 8px 18px;
+  color: #1B3A6B;
+}
+
+table {
+  font-size: 22px;
+}
+
+table th {
+  background: #3266C7;
+  color: #FFFFFF;
+}
+
+table td {
+  border-color: #C9D3E1;
+}
+
+/* --- Archetype: title ------------------------------------------------ */
+
+section.title {
+  background: linear-gradient(135deg, #1B3A6B 0%, #3266C7 62%, #7655BB 100%);
+  color: #FFFFFF;
+  justify-content: center;
+  text-align: left;
+}
+
+section.title h1 {
+  color: #FFFFFF;
+  font-size: 60px;
+}
+
+section.title h2 {
+  color: #DCE7FB;
+  font-size: 30px;
+}
+
+section.title p,
+section.title strong {
+  color: #EAF1FF;
+}
+
+section.title header,
+section.title footer {
+  color: #C7D8F6;
+}
+
+/* --- Archetype: section divider -------------------------------------- */
+
+section.section {
+  background: #1B3A6B;
+  color: #FFFFFF;
+}
+
+section.section h1 {
+  color: #FFFFFF;
+  font-size: 56px;
+}
+
+section.section h2 {
+  color: #8FB4EE;
+  font-size: 30px;
+}
+
+section.section p {
+  color: #DCE7FB;
+}
+
+section.section::after,
+section.section header,
+section.section footer {
+  color: #8FB4EE;
+}
+
+/* --- Archetype: concept (diagram) ------------------------------------ */
+
+section.concept h2 {
+  font-size: 30px;
+}
+
+section.concept ul {
+  font-size: 24px;
+}
+
+/* --- Archetype: demo (screenshot + steps) ---------------------------- */
+
+section.demo h2 {
+  font-size: 30px;
+}
+
+section.demo ol {
+  font-size: 22px;
+}
+
+section.demo img[alt~="shot"] {
+  border: 1px solid #C9D3E1;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(27, 58, 107, 0.18);
+}
+
+/* --- Archetype: checkpoint ------------------------------------------- */
+
+section.checkpoint {
+  background: #EAF1FF;
+}
+
+section.checkpoint h2 {
+  color: #1B3A6B;
+}
+
+section.checkpoint ul {
+  font-size: 26px;
+}
+
+/* --- Archetype: pitfall ---------------------------------------------- */
+
+section.pitfall {
+  background: #FFF3DC;
+}
+
+section.pitfall h2 {
+  color: #A86414;
+}
+
+section.pitfall strong {
+  color: #A86414;
+}
+
+/* --- Archetype: lab -------------------------------------------------- */
+
+section.lab {
+  background: #E6F5F1;
+}
+
+section.lab h2 {
+  color: #087D79;
+}
+
+/* --- Archetype: wrap ------------------------------------------------- */
+
+section.wrap {
+  background: #F1EBFB;
+}
+
+section.wrap h2 {
+  color: #5B3E9E;
+}
