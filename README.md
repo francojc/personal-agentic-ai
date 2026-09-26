@@ -195,8 +195,8 @@ The scripts create a private `.env`, generate persistent application encryption/
 
 ## First run
 
-1. Open **TSDProxy** at `http://localhost:8080` and complete its Tailscale setup.
-2. Open **Bifrost** at `http://localhost:8081`. Add one model provider and API key in its UI.
+1. Authenticate TSDProxy to your tailnet. Run `./scripts/tsdproxy-auth.sh` for the current auth links, or open the dashboard at `http://localhost:8080`. Approve both the `webui` and `gateway` nodes.
+2. Open **Bifrost** at `http://localhost:8081`. Add one model provider and API key in its UI. For the guided version, see [`docs/04-PROVIDER-AND-WORKSPACE.md`](docs/04-PROVIDER-AND-WORKSPACE.md).
 3. Open **Open WebUI** at `http://localhost:3000`, create the first account, and verify that Bifrost-backed models appear.
 4. Once TSDProxy is authenticated, prefer the private Tailscale HTTPS names (`webui` and `gateway`) for normal use.
 
@@ -224,7 +224,7 @@ The three localhost ports are bound to `127.0.0.1`, so they are bootstrap/admin 
 
 Once the core stack works, add capabilities progressively: web/search and knowledge, MCP/OpenAPI tools, Open Terminal/code execution, local models, and hardened Bifrost authentication/virtual keys.
 
-See `docs/ARCHITECTURE.md`, `docs/02-FIRST-RUN.md`, and [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md).
+See `docs/ARCHITECTURE.md`, `docs/02-FIRST-RUN.md`, [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md), and [`docs/04-PROVIDER-AND-WORKSPACE.md`](docs/04-PROVIDER-AND-WORKSPACE.md).
 
 ## Optional dev container
 

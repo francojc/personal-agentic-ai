@@ -263,8 +263,8 @@ Do not continue until all four are true:
 
 ```text
 TSDProxy dashboard opens locally .......... ✓
-ai proxy shows running .................... ✓
-bifrost proxy shows running ............... ✓
+webui proxy shows running ................. ✓
+gateway proxy shows running ............... ✓
 both private URLs work from second device . ✓
 ```
 
