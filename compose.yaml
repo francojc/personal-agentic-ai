@@ -18,7 +18,7 @@ services:
       - "127.0.0.1:${OPENWEBUI_LOCAL_PORT:-3000}:8080"
     labels:
       tsdproxy.enable: "true"
-      tsdproxy.name: "${OPENWEBUI_TS_NAME:-ai}"
+      tsdproxy.name: "${OPENWEBUI_TS_NAME:-webui}"
     networks: [ai]
 
   bifrost:
@@ -33,7 +33,7 @@ services:
       - "127.0.0.1:${BIFROST_LOCAL_PORT:-8081}:8080"
     labels:
       tsdproxy.enable: "true"
-      tsdproxy.name: "${BIFROST_TS_NAME:-bifrost}"
+      tsdproxy.name: "${BIFROST_TS_NAME:-gateway}"
     networks: [ai]
 
   tsdproxy:

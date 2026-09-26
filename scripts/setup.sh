@@ -6,9 +6,10 @@ docker compose version >/dev/null || { echo "Docker Compose v2 is required."; ex
 rand(){ if command -v openssl >/dev/null; then openssl rand -hex 32; else python3 -c 'import secrets; print(secrets.token_hex(32))'; fi; }
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  w=$(rand); b=$(rand)
+  w=$(rand); b=$(rand); m=$(rand)
   sed -i.bak "s/^WEBUI_SECRET_KEY=.*/WEBUI_SECRET_KEY=$w/" .env
   sed -i.bak "s/^BIFROST_ENCRYPTION_KEY=.*/BIFROST_ENCRYPTION_KEY=$b/" .env
+  sed -i.bak "s/^MCPO_API_KEY=.*/MCPO_API_KEY=$m/" .env
   rm -f .env.bak
   chmod 600 .env 2>/dev/null || true
   echo "Created .env with persistent random secrets."

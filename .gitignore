@@ -2,3 +2,7 @@
 *.bak
 .DS_Store
 Thumbs.db
+.aider*
+
+# Default dev-container workspace (override with DEV_WORKSPACE).
+workspace/

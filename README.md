@@ -224,4 +224,15 @@ The three localhost ports are bound to `127.0.0.1`, so they are bootstrap/admin 
 
 Once the core stack works, add capabilities progressively: web/search and knowledge, MCP/OpenAPI tools, Open Terminal/code execution, local models, and hardened Bifrost authentication/virtual keys.
 
-See `docs/ARCHITECTURE.md` and `docs/FIRST-RUN.md`.
+See `docs/ARCHITECTURE.md`, `docs/02-FIRST-RUN.md`, and [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md).
+
+## Optional dev container
+
+An optional dev layer adds a browser-based VS Code (`devbox`) plus an agent tool bridge (`mcp`/mcpo) over a shared host workspace. Neither gets the Docker socket.
+
+```bash
+./scripts/dev.sh            # devbox + agent bridge
+./scripts/dev.sh --no-mcp   # devbox only
+```
+
+See [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md).
