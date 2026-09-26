@@ -1,0 +1,61 @@
+name: personal-agentic-ai
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:${OPENWEBUI_TAG:-main}
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      bifrost:
+        condition: service_started
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      OPENAI_API_BASE_URL: http://bifrost:8080/v1
+      OPENAI_API_KEY: ${BIFROST_OPENWEBUI_KEY:-not-required}
+    volumes:
+      - open-webui-data:/app/backend/data
+    ports:
+      - "127.0.0.1:${OPENWEBUI_LOCAL_PORT:-3000}:8080"
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "${OPENWEBUI_TS_NAME:-ai}"
+    networks: [ai]
+
+  bifrost:
+    image: maximhq/bifrost:${BIFROST_TAG:-latest}
+    container_name: bifrost
+    restart: unless-stopped
+    environment:
+      BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY}
+    volumes:
+      - bifrost-data:/app/data
+    ports:
+      - "127.0.0.1:${BIFROST_LOCAL_PORT:-8081}:8080"
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "${BIFROST_TS_NAME:-bifrost}"
+    networks: [ai]
+
+  tsdproxy:
+    image: almeidapaulopt/tsdproxy:${TSDPROXY_TAG:-latest}
+    container_name: tsdproxy
+    restart: unless-stopped
+    user: root
+    ports:
+      - "127.0.0.1:${TSDPROXY_LOCAL_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - tsdproxy-data:/data
+      - tsdproxy-tmp:/tmp
+      - ./config/tsdproxy:/config
+    networks: [ai]
+
+networks:
+  ai:
+    name: personal-agentic-ai
+
+volumes:
+  open-webui-data:
+  bifrost-data:
+  tsdproxy-data:
+  tsdproxy-tmp:
