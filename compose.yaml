@@ -37,10 +37,13 @@ services:
     networks: [ai]
 
   tsdproxy:
-    image: almeidapaulopt/tsdproxy:${TSDPROXY_TAG:-latest}
+    # Pin to the stable v2 line. "latest" currently tracks 3.0.0-beta and
+    # changes label/architecture behavior (gateway nodes, naming).
+    image: almeidapaulopt/tsdproxy:${TSDPROXY_TAG:-2.3.4}
     container_name: tsdproxy
     restart: unless-stopped
-    user: root
+    # Numeric IDs: the image has no passwd entry named "root".
+    user: "0:0"
     ports:
       - "127.0.0.1:${TSDPROXY_LOCAL_PORT:-8080}:8080"
     volumes:

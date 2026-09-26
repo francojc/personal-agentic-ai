@@ -6,3 +6,6 @@ Thumbs.db
 
 # Default dev-container workspace (override with DEV_WORKSPACE).
 workspace/
+
+# TSDProxy writes runtime config/state here.
+config/tsdproxy/tsdproxy.yaml

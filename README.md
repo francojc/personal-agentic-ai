@@ -198,7 +198,7 @@ The scripts create a private `.env`, generate persistent application encryption/
 1. Open **TSDProxy** at `http://localhost:8080` and complete its Tailscale setup.
 2. Open **Bifrost** at `http://localhost:8081`. Add one model provider and API key in its UI.
 3. Open **Open WebUI** at `http://localhost:3000`, create the first account, and verify that Bifrost-backed models appear.
-4. Once TSDProxy is authenticated, prefer the private Tailscale HTTPS names (`ai` and `bifrost`) for normal use.
+4. Once TSDProxy is authenticated, prefer the private Tailscale HTTPS names (`webui` and `gateway`) for normal use.
 
 Open WebUI is pre-seeded to use `http://bifrost:8080/v1` on first launch. Open WebUI stores that connection in its persistent configuration afterward, so later changes can be made in its Admin UI.
 

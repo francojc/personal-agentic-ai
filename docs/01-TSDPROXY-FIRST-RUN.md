@@ -4,8 +4,8 @@ TSDProxy is the private front door for this stack. It watches Docker, finds cont
 
 For this project, TSDProxy publishes two services:
 
-- **`ai`** → Open WebUI
-- **`bifrost`** → Bifrost's browser UI
+- **`webui`** → Open WebUI
+- **`gateway`** → Bifrost's browser UI
 
 Open WebUI still talks to Bifrost directly over the Docker network. Tailscale is for *you* to reach the browser interfaces.
 
@@ -72,13 +72,23 @@ In the Tailscale page:
 
 TSDProxy stores its Tailscale state in persistent data. You should not need to authenticate again after ordinary container restarts.
 
-If the dashboard does not expose a usable authentication link, inspect:
+If the dashboard does not expose a usable authentication link, use the helper:
+
+```bash
+./scripts/tsdproxy-auth.sh
+```
+
+It prints the latest auth URL per hostname, filtered to the current container run. Two nodes need approval: `webui` (Open WebUI) and `gateway` (Bifrost). Auth URLs are single-use and regenerate when tsdproxy restarts, so click them promptly.
+
+Underlying logs, if you prefer:
 
 ```bash
 docker compose logs -f tsdproxy
 ```
 
-The underlying Tailscale/tsnet enrollment flow can also emit an authentication URL in the logs.
+The Tailscale/tsnet enrollment flow emits the authentication URL in the logs.
+
+> **Hostname sanity check.** The published names come from `OPENWEBUI_TS_NAME` and `BIFROST_TS_NAME` in `.env` (`webui` and `gateway` by default). If logs show unexpected names, either your `.env` values differ, or you are running the TSDProxy v3 beta instead of the pinned v2 line. See `docs/RESEARCH-NOTES.md`.
 
 ## Step 3 — Confirm Docker discovery
 
@@ -87,7 +97,7 @@ The Compose file opts Open WebUI and Bifrost into TSDProxy using Docker labels s
 ```yaml
 labels:
   tsdproxy.enable: "true"
-  tsdproxy.name: "ai"
+  tsdproxy.name: "webui"
 ```
 
 and:
@@ -95,7 +105,7 @@ and:
 ```yaml
 labels:
   tsdproxy.enable: "true"
-  tsdproxy.name: "bifrost"
+  tsdproxy.name: "gateway"
 ```
 
 Return to the TSDProxy dashboard.
@@ -125,8 +135,8 @@ Once authenticated and running, TSDProxy should display the Tailscale hostname/F
 They will conceptually look like:
 
 ```text
-https://ai.<your-tailnet>.ts.net
-https://bifrost.<your-tailnet>.ts.net
+https://webui.<your-tailnet>.ts.net
+https://gateway.<your-tailnet>.ts.net
 ```
 
 Use the exact names shown in your dashboard. Do not manually invent the tailnet suffix.
@@ -135,7 +145,7 @@ TSDProxy uses Tailscale/MagicDNS and automatically supports TLS for these privat
 
 ## Step 5 — Test Open WebUI
 
-From the host computer, open the `ai` URL shown by TSDProxy.
+From the host computer, open the `webui` URL shown by TSDProxy.
 
 You should reach Open WebUI.
 
@@ -143,7 +153,7 @@ Complete Open WebUI's initial account setup if this is a fresh installation.
 
 ## Step 6 — Test Bifrost
 
-Open the `bifrost` URL shown by TSDProxy.
+Open the `gateway` URL shown by TSDProxy.
 
 You should reach Bifrost's management UI.
 
@@ -155,8 +165,8 @@ This is the useful test.
 
 On a **second device already joined to the same tailnet**:
 
-1. Open the `ai` URL.
-2. Open the `bifrost` URL.
+1. Open the `webui` URL.
+2. Open the `gateway` URL.
 3. Confirm both load.
 
 Then temporarily disconnect Tailscale on that second device and try again. The private tailnet URLs should no longer be reachable through the normal Tailscale path.
@@ -211,7 +221,7 @@ If the local application works but the Tailscale URL does not, focus on TSDProxy
 
 ### D. Does TSDProxy see the services?
 
-Check the dashboard and confirm both `ai` and `bifrost` appear.
+Check the dashboard and confirm both `webui` and `gateway` appear.
 
 If they do not, inspect Docker labels and TSDProxy's Docker-socket access.
 
