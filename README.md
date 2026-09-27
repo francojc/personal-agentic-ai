@@ -237,4 +237,6 @@ An optional dev layer adds browser-based VS Code (`devbox`), Open Terminal API, 
 ./scripts/dev.sh --no-mcp   # devbox + Open Terminal
 ```
 
-See [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md).
+Open Terminal API docs: `http://localhost:8001/docs` (or `https://terminal.<your-tailnet>.ts.net/docs`). Configure it in Open WebUI under **User Settings → Integrations → Open Terminal** using a URL reachable from your browser: `http://localhost:8001` locally, or your tailnet URL remotely. Use `OPEN_TERMINAL_API_KEY` from `.env`.
+
+Configure MCP under **Admin Panel → Settings → Integrations → External Tool Servers**, not User Settings. See [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md) for full setup.

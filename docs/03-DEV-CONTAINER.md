@@ -98,7 +98,7 @@ Both should match. Files persist across container restarts and are yours to back
 
 ## Step 4 — Use Open Terminal
 
-Open locally at `http://localhost:8001` or privately at `https://terminal.<your-tailnet>.ts.net`. Authenticate with the value of `OPEN_TERMINAL_API_KEY` in `.env`. The API has command and file access to the shared workspace, so treat its key as a secret. Open Terminal runs in its own container and does not receive the Docker socket.
+Open locally at `http://localhost:8001` or privately at `https://terminal.<your-tailnet>.ts.net`. In Open WebUI, add it under **User Settings → Integrations → Open Terminal**. Use the URL reachable from your browser: `http://localhost:8001` when browsing locally, or the tailnet URL when browsing remotely. Do not use the Docker-only hostname `http://open-terminal:8000` here; this connection is made by the browser. Authenticate with `OPEN_TERMINAL_API_KEY` from `.env`. The API has command and file access to the shared workspace, so treat its key as a secret. Open Terminal runs in its own container and does not receive the Docker socket.
 
 Ports and Tailscale name can be changed with `OPEN_TERMINAL_LOCAL_PORT` and `OPEN_TERMINAL_TS_NAME` in `.env`.
 
@@ -116,8 +116,8 @@ You should see the tools exposed by `mcp-shell-server`. The API key is the value
 
 In Open WebUI:
 
-1. Open **Settings → Admin → Integrations**.
-2. Under **External Tool Servers**, choose **+ Add Connection**.
+1. Open **Admin Panel → Settings → Integrations** (not **User Settings → Integrations**).
+2. Under **External Tool Servers**, choose **+ Add Connection** and enable the connection.
 3. Set **Type** to **OpenAPI**.
 4. Set **URL** to `http://mcp:8000/shell`.
 5. Set **Auth** to **Bearer** and paste `MCPO_API_KEY`.
