@@ -28,6 +28,7 @@ Two new services:
 ## Design choices and tradeoffs
 
 - **Separate container.** The dev environment is its own service, not part of the Open WebUI container.
+- **Config-volume ownership.** A one-shot initializer fixes `devbox-config` ownership to code-server's UID/GID (`1000:1000`) before devbox starts, including on fresh volumes.
 - **One shared workspace.** devbox and mcp mount the same host directory. You and the agent see the same files.
 - **No Docker socket.** Only TSDProxy keeps that privilege. The dev layer cannot control Docker.
 - **Not a hardened sandbox.** The workspace is writable host files. Allowlisted commands run inside the mcp container with the toolchain of that image. Treat it as a convenience boundary, not a security boundary for hostile code.

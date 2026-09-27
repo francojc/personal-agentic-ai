@@ -18,10 +18,22 @@ services:
   # Human-facing dev environment: browser VS Code with the workspace mounted.
   # No Docker socket. Not an agent sandbox by itself.
   # ---------------------------------------------------------------------------
+  devbox-config-init:
+    image: codercom/code-server:${CODE_SERVER_TAG:-latest}
+    user: "0:0"
+    entrypoint: ["sh", "-c"]
+    command: ["chown -R 1000:1000 /data"]
+    volumes:
+      - devbox-config:/data
+    restart: "no"
+
   devbox:
     image: codercom/code-server:${CODE_SERVER_TAG:-latest}
     container_name: devbox
     restart: unless-stopped
+    depends_on:
+      devbox-config-init:
+        condition: service_completed_successfully
     command:
       - --auth
       - none

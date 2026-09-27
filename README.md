@@ -198,10 +198,9 @@ The scripts create a private `.env`, generate persistent application encryption/
 
 ## First run
 
-1. Authenticate TSDProxy to your tailnet. Run `./scripts/tsdproxy-auth.sh` for the current auth links, or open the dashboard at `http://localhost:8080`. Approve both the `webui` and `gateway` nodes.
-2. Open **Bifrost** at `http://localhost:8081`. Add one model provider and API key in its UI. For the guided version, see [`docs/04-PROVIDER-AND-WORKSPACE.md`](docs/04-PROVIDER-AND-WORKSPACE.md).
-3. Open **Open WebUI** at `http://localhost:3000`, create the first account, and verify that Bifrost-backed models appear.
-4. Once TSDProxy is authenticated, prefer the private Tailscale HTTPS names (`webui` and `gateway`) for normal use.
+1. Authenticate TSDProxy to your tailnet. Open the dashboard at `http://localhost:8080`. (or run `./scripts/tsdproxy-auth.sh` for the current auth links.) Approve both the `webui` and `gateway` nodes.
+2. Open **Bifrost** at `gateway.<tailnet>.ts.net` or `http://localhost:8081`. Add one model provider and API key in its UI. For the guided version, see [`docs/04-PROVIDER-AND-WORKSPACE.md`](docs/04-PROVIDER-AND-WORKSPACE.md).
+3. Open **Open WebUI** at `https://webui.<tailnet>.ts.net` or `http://localhost:3000`, create the first account, and verify that Bifrost-backed models appear.
 
 Open WebUI is pre-seeded to use `http://bifrost:8080/v1` on first launch. Open WebUI stores that connection in its persistent configuration afterward, so later changes can be made in its Admin UI.
 
