@@ -153,6 +153,9 @@ Tailscale
   ├─ personal tailnet ✓
   ├─ host computer joined ✓
   └─ second device (recommended) ✓
+
+OpenRouter
+  └─ API key ✓
 ```
 
 Now continue with the stack installation below.

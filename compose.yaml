@@ -36,6 +36,21 @@ services:
       tsdproxy.name: "${BIFROST_TS_NAME:-gateway}"
     networks: [ai]
 
+  # Advanced local decision model. Tested with Ollaya 0.7.2, CPU-only.
+  # Uncomment service and ollaya-data volume below to enable. It shares `ai`
+  # network, so Bifrost can reach it at http://ollaya:11435. Ollaya uses
+  # TypeSafe System One API, not OpenAI chat-completions; direct Bifrost
+  # integration needs an adapter or a separate caller.
+  # ollaya:
+  #   image: ghcr.io/ollaya-dev/ollaya:0.7.2
+  #   container_name: ollaya
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ollaya-data:/home/ollaya/.ollaya
+  #   ports:
+  #     - "127.0.0.1:11435:11435"
+  #   networks: [ai]
+
   tsdproxy:
     # Pin to the stable v2 line. "latest" currently tracks 3.0.0-beta and
     # changes label/architecture behavior (gateway nodes, naming).
@@ -60,5 +75,6 @@ networks:
 volumes:
   open-webui-data:
   bifrost-data:
+  # ollaya-data:
   tsdproxy-data:
   tsdproxy-tmp:

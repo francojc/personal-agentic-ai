@@ -28,7 +28,7 @@ dist/       # build output (gitignored, self-contained)
 
 Output: `dist/deck.html` and `dist/deck.pdf`. `dist/` is self-contained: the HTML references `dist/assets/`, so the whole folder can be shared or zipped as-is.
 
-HTML needs no browser. PDF does: install Chrome, Edge, or Firefox, or use `--docker-pdf` to render it in the `marpteam/marp-cli` container. On a machine with no supported browser, the default run builds HTML and skips PDF with instructions.
+HTML needs no browser. PDF uses Chrome, Edge, Firefox, or (on macOS) Helium when installed at `/Applications/Helium.app`. Override browser selection with `MARP_BROWSER_PATH=/path/to/browser ./build.sh --pdf`. Otherwise, use `--docker-pdf` to render in the `marpteam/marp-cli` container.
 
 ## Preview
 

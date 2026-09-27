@@ -17,6 +17,15 @@ command -v marp >/dev/null || {
 
 mkdir -p dist
 
+# Marp accepts Chromium-based browsers through --browser-path. Helium ships a
+# Chromium executable but is not in Marp's automatic browser discovery list.
+browser_args=()
+if [[ -n "${MARP_BROWSER_PATH:-}" ]]; then
+  browser_args=(--browser-path "$MARP_BROWSER_PATH")
+elif [[ "$(uname -s)" == Darwin && -x "/Applications/Helium.app/Contents/MacOS/Helium" ]]; then
+  browser_args=(--browser-path "/Applications/Helium.app/Contents/MacOS/Helium")
+fi
+
 # Copy assets so relative paths (assets/...) resolve inside dist/.
 rm -rf dist/assets
 cp -R assets dist/assets
@@ -35,7 +44,7 @@ marp --config-file ./marp.config.mjs --allow-local-files dist/deck.md -o dist/de
 mode="${1:-auto}"
 
 build_pdf_local() {
-  marp --config-file ./marp.config.mjs --allow-local-files \
+  marp --config-file ./marp.config.mjs --allow-local-files "${browser_args[@]}" \
     --pdf --pdf-notes --pdf-outlines dist/deck.md -o dist/deck.pdf
 }
 
