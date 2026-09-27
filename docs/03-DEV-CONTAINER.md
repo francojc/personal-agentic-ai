@@ -13,6 +13,8 @@ TSDProxy
     |
     +--> devbox (code-server)  --> /workspace  (host directory)
     |
+    +--> open-terminal         --> /home/user  (same directory; API key protected)
+    |
     +--> mcp (mcpo)            --> /workspace  (same directory)
                 |
                 +--> Open WebUI (agent tool calls)
@@ -20,9 +22,10 @@ TSDProxy
 Open WebUI --> Bifrost --> model providers   (unchanged)
 ```
 
-Two new services:
+Development services:
 
 - **devbox** — VS Code in the browser, running as a container. You edit and run projects against a mounted host directory. No Docker socket.
+- **open-terminal** — Open Terminal command and file API, sharing the workspace. Protected by `OPEN_TERMINAL_API_KEY`; no Docker socket.
 - **mcp** — `mcpo`, an MCP-to-OpenAPI proxy. It exposes a shell/filesystem MCP server so the Open WebUI agent can run allowlisted commands and touch files in the same workspace. Optional, behind a Compose profile.
 
 ## Design choices and tradeoffs
@@ -46,7 +49,7 @@ Two new services:
 ./scripts/dev.sh --no-mcp   # devbox only
 ```
 
-The script creates `.env` if needed, generates `MCPO_API_KEY`, creates the workspace directory, and starts the merged stack.
+The script creates `.env` if needed, generates `OPEN_TERMINAL_API_KEY` and `MCPO_API_KEY`, creates the workspace directory, and starts the merged stack.
 
 Manual equivalent:
 
@@ -93,7 +96,13 @@ ls "${DEV_WORKSPACE:-./workspace}"
 
 Both should match. Files persist across container restarts and are yours to back up.
 
-## Step 4 — Inspect the agent bridge
+## Step 4 — Use Open Terminal
+
+Open locally at `http://localhost:8001` or privately at `https://terminal.<your-tailnet>.ts.net`. Authenticate with the value of `OPEN_TERMINAL_API_KEY` in `.env`. The API has command and file access to the shared workspace, so treat its key as a secret. Open Terminal runs in its own container and does not receive the Docker socket.
+
+Ports and Tailscale name can be changed with `OPEN_TERMINAL_LOCAL_PORT` and `OPEN_TERMINAL_TS_NAME` in `.env`.
+
+## Step 5 — Inspect the agent bridge
 
 With the `mcp` profile running, open the generated OpenAPI docs:
 
@@ -103,7 +112,7 @@ http://localhost:8000/shell/docs
 
 You should see the tools exposed by `mcp-shell-server`. The API key is the value of `MCPO_API_KEY` in `.env`.
 
-## Step 5 — Register the bridge in Open WebUI
+## Step 6 — Register the bridge in Open WebUI
 
 In Open WebUI:
 
@@ -118,7 +127,7 @@ Use the internal Docker name `mcp`, not `localhost`, because Open WebUI calls it
 
 Then, in a chat, open the tools menu and enable the shell tools for that model.
 
-## Step 6 — Test the agent
+## Step 7 — Test the agent
 
 Ask the model to list the workspace and create a file:
 

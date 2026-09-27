@@ -21,6 +21,16 @@ if [[ ! -f .env ]]; then
   ./scripts/setup.sh
 fi
 
+# Ensure Open Terminal API key exists and is not a placeholder.
+if ! grep -q '^OPEN_TERMINAL_API_KEY=' .env; then
+  printf '\nOPEN_TERMINAL_API_KEY=%s\n' "$(rand)" >> .env
+  echo "Added OPEN_TERMINAL_API_KEY to .env."
+elif grep -q '^OPEN_TERMINAL_API_KEY=GENERATE_ME' .env; then
+  sed -i.bak "s/^OPEN_TERMINAL_API_KEY=.*/OPEN_TERMINAL_API_KEY=$(rand)/" .env
+  rm -f .env.bak
+  echo "Generated OPEN_TERMINAL_API_KEY in .env."
+fi
+
 # Make sure MCPO_API_KEY exists and is not a placeholder.
 if ! grep -q '^MCPO_API_KEY=' .env; then
   printf '\nMCPO_API_KEY=%s\n' "$(rand)" >> .env
@@ -37,7 +47,7 @@ mkdir -p "${DEV_WORKSPACE:-./workspace}"
 
 profile_args=()
 if [[ "${1:-}" == "--no-mcp" ]]; then
-  echo "Starting devbox only (MCP bridge disabled)."
+  echo "Starting devbox + Open Terminal (MCP bridge disabled)."
 else
   profile_args=(--profile mcp)
   echo "Starting devbox + mcp bridge."
@@ -49,6 +59,8 @@ docker compose -f compose.yaml -f compose.dev.yaml ${profile_args[@]+"${profile_
 printf '\nDev environment:\n'
 printf '  code-server (local):  http://localhost:%s\n' "${DEVBOX_LOCAL_PORT:-8443}"
 printf '  code-server (tailnet): https://%s.<your-tailnet>.ts.net\n' "${DEVBOX_TS_NAME:-dev}"
+printf '  Open Terminal (local): http://localhost:%s\n' "${OPEN_TERMINAL_LOCAL_PORT:-8001}"
+printf '  Open Terminal (tailnet): https://%s.<your-tailnet>.ts.net\n' "${OPEN_TERMINAL_TS_NAME:-terminal}"
 printf '  workspace on host:     %s\n' "$(cd "${DEV_WORKSPACE:-./workspace}" && pwd)"
 if [[ ${#profile_args[@]} -eq 0 ]]; then
   printf '  mcpo OpenAPI docs:     http://localhost:%s/shell/docs\n' "${MCPO_LOCAL_PORT:-8000}"

@@ -61,6 +61,30 @@ services:
     cpus: "${DEVBOX_CPUS:-2.0}"
 
   # ---------------------------------------------------------------------------
+  # Open Terminal: authenticated command/file API in isolated container.
+  # Shares workspace with devbox; no Docker socket.
+  # ---------------------------------------------------------------------------
+  open-terminal:
+    image: ghcr.io/open-webui/open-terminal:${OPEN_TERMINAL_TAG:-latest}
+    container_name: open-terminal
+    restart: unless-stopped
+    environment:
+      OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY:?set OPEN_TERMINAL_API_KEY in .env}
+    volumes:
+      - ${DEV_WORKSPACE:-./workspace}:/home/user
+    ports:
+      - "127.0.0.1:${OPEN_TERMINAL_LOCAL_PORT:-8001}:8000"
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "${OPEN_TERMINAL_TS_NAME:-terminal}"
+    networks: [ai]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: ${OPEN_TERMINAL_MEM_LIMIT:-4g}
+    cpus: "${OPEN_TERMINAL_CPUS:-2.0}"
+
+  # ---------------------------------------------------------------------------
   # Agent tool bridge (optional, profile "mcp").
   # mcpo turns a stdio MCP server into an OpenAPI tool server that Open WebUI
   # can register under Settings > Admin > Integrations > External Tool Servers.

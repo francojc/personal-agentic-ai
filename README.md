@@ -230,11 +230,11 @@ See `docs/ARCHITECTURE.md`, `docs/02-FIRST-RUN.md`, [`docs/03-DEV-CONTAINER.md`]
 
 ## Optional dev container
 
-An optional dev layer adds a browser-based VS Code (`devbox`) plus an agent tool bridge (`mcp`/mcpo) over a shared host workspace. Neither gets the Docker socket.
+An optional dev layer adds browser-based VS Code (`devbox`), Open Terminal API, and agent tool bridge (`mcp`/mcpo) over shared host workspace. None gets the Docker socket.
 
 ```bash
 ./scripts/dev.sh            # devbox + agent bridge
-./scripts/dev.sh --no-mcp   # devbox only
+./scripts/dev.sh --no-mcp   # devbox + Open Terminal
 ```
 
 See [`docs/03-DEV-CONTAINER.md`](docs/03-DEV-CONTAINER.md).
