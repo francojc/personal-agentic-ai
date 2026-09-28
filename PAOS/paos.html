@@ -1,0 +1,1136 @@
+<h1 id="the-personal-agentic-os">The Personal Agentic OS</h1>
+<h2
+id="a-draft-whitepaper-on-control-planes-decision-models-and-human-learning">A
+draft whitepaper on control planes, decision models, and human
+learning</h2>
+<p><strong>Draft 0.2 · September 2026</strong><br />
+<strong>Scope:</strong> Conceptual framework and exploratory design;
+product details reflect documentation reviewed September 28, 2026.</p>
+<blockquote>
+<p><strong>Thesis.</strong> A Personal Agentic OS should help a person
+pursue chosen goals, notice what matters, investigate evidence, exercise
+judgment, and learn. Its work control plane, bounded decision layer, and
+inference gateway coordinate AI resources in service of that human
+process. The measure of success is a more capable human, not merely more
+autonomous software.</p>
+</blockquote>
+<h2 id="executive-summary">Executive summary</h2>
+<p>An AI assistant responds to a request. An agent can use tools to
+complete a task. A <strong>Personal Agentic OS</strong> is a proposed
+architecture in which persistent work, specialized decisions, model
+access, and human reflection form one revisable system. Its
+<strong>organizational control plane</strong> maintains goals, projects,
+roles, work records, approvals, and continuity. Its <strong>decision
+layer</strong> makes bounded classifications, scores, and escalation
+recommendations. Its <strong>inference gateway</strong> provides a
+stable route to model providers with authentication, routing, budgets,
+fallbacks, and observability. Runtimes and tools execute the work; the
+human sets direction, interprets evidence, and decides what to value.
+[1–6, 15–21]</p>
+<p>Paperclip and Multica exemplify the work layer. Jev, Kev, Laya, NLI
+models, and the Ollaya local runtime suggest a different primitive:
+fast, typed decisions that can triage material before an expensive
+generative agent is invoked. Bifrost and LiteLLM exemplify gateways that
+can govern generative model traffic. These are complementary roles, not
+interchangeable products. The decision models do not determine human
+values, and the gateway does not decide what a project is for.
+[15–21]</p>
+<p>The core use case in this revision is <strong>research as a learning
+loop</strong>. A person wonders, frames a question, encounters evidence,
+tests an interpretation, and revises their understanding. Agents can
+widen the search, expose contradictions, rehearse alternative
+explanations, and preserve a trail of how a question evolved. The system
+should strengthen curiosity, expertise, creativity, and judgment without
+quietly substituting machine judgments for the person’s own.</p>
+<p>This paper develops the layered architecture, applied workflows,
+control requirements, a bounded prototype, and a research agenda.
+Descriptions of products are sourced to current documentation; the
+Personal Agentic OS, its interaction design, and its hypotheses are
+proposals for investigation.</p>
+<h2 id="why-another-software-layer-is-emerging">1. Why another software
+layer is emerging</h2>
+<p>The chat interface is effective for a question with a bounded answer.
+It becomes strained when work continues over weeks, depends on changing
+sources, involves several tools or specialists, and must be audited
+later. A capable model still needs answers to organizational questions:
+What is the goal? Who owns this task? What evidence is authoritative?
+Which actions are permitted? What counts as finished? Who reviews the
+result? What happens if the worker is interrupted?</p>
+<p>These are not solved merely by adding more agents. Ten model sessions
+can multiply context loss, conflicting edits, duplicated effort, cost,
+and false confidence. The control plane exists to make the work itself
+durable and governable.</p>
+<pre class="mermaid"><code>flowchart TB
+    H[&quot;Human: goals, values, judgment, learning&quot;] --&gt; W[&quot;Work control plane: agenda, tasks, roles, memory&quot;]
+    W --&gt; D[&quot;Decision layer: classify, score, gate, escalate&quot;]
+    D --&gt; R[&quot;Agent runtime: investigate, create, critique&quot;]
+    R --&gt; G[&quot;Inference gateway: models, keys, budgets, traces&quot;]
+    R --&gt; T[&quot;Tools and environment: sources, files, services&quot;]
+    G --&gt; R
+    T --&gt; R
+    R --&gt; W
+    W --&gt; H</code></pre>
+<p>This is a conceptual architecture, not a claim that all systems
+implement every element. Tool protocols such as MCP address a different
+boundary: they expose external resources and actions to applications and
+models. A work control plane decides when and why those capabilities are
+used, by whom, within which task and review policy. A decision layer may
+act before, during, or after an agent run; gateway calls may occur at
+several points. The diagram expresses responsibility, not a mandatory
+linear request path. [11]</p>
+<h3 id="working-definition">Working definition</h3>
+<p>A <strong>control plane for agentic work</strong> is a persistent
+coordination system that binds goals and tasks to agent identities,
+execution environments, tools, permissions, human decisions, and
+observable outcomes. “Meta-agentic harness” is a useful informal label,
+but neither term is yet a stable industry category.</p>
+<p>A system need not contain multiple agents to benefit from a control
+plane. One agent with a durable work queue, carefully scoped
+permissions, and clear review gates may outperform an elaborate agent
+hierarchy.</p>
+<h2 id="the-essential-primitives">2. The essential primitives</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>The question it answers</th>
+<th>Minimum useful record</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Goal and scope</td>
+<td>Why does this work exist?</td>
+<td>desired outcome, owner, constraints, stop condition</td>
+</tr>
+<tr>
+<td>Work item</td>
+<td>What exactly needs doing?</td>
+<td>status, assignee, input, due context, acceptance criteria</td>
+</tr>
+<tr>
+<td>Agent identity</td>
+<td>Who is responsible across runs?</td>
+<td>role, instructions, skills, permissions, history</td>
+</tr>
+<tr>
+<td>Runtime and run</td>
+<td>Where and when was work executed?</td>
+<td>model/tool, environment, start/end, result, cost</td>
+</tr>
+<tr>
+<td>Context and sources</td>
+<td>What may the worker rely on?</td>
+<td>source locations, versions, provenance, freshness</td>
+</tr>
+<tr>
+<td>Policy</td>
+<td>What may it read, change, send, or spend?</td>
+<td>permissions, budgets, escalation triggers</td>
+</tr>
+<tr>
+<td>Review</td>
+<td>What needs human judgment?</td>
+<td>decision request, evidence, reversibility, deadline</td>
+</tr>
+<tr>
+<td>Artifact</td>
+<td>What was produced?</td>
+<td>file or record, version, links to supporting evidence</td>
+</tr>
+<tr>
+<td>Audit and feedback</td>
+<td>Can we reconstruct and improve the process?</td>
+<td>decisions, actions, errors, evaluation results</td>
+</tr>
+</tbody>
+</table>
+<p>The critical distinction is <strong>identity ≠ runtime ≠
+model</strong>. An agent named “Literature Scout” can persist as a role
+and work history even while its underlying model, tool, or computer
+changes. Multica describes this separation explicitly through agent,
+runtime, and run; Paperclip similarly maintains organizational agents
+whose heartbeats invoke an underlying adapter. [2, 4]</p>
+<p>Persistence should be selective. A durable agent needs stable
+instructions and references to authoritative material, not an
+ever-growing dump of conversation history. Old decisions require dates,
+ownership, and a path to revision. Otherwise organizational memory
+becomes organizational misinformation.</p>
+<h2 id="a-layered-personal-agentic-os">3. A layered Personal Agentic
+OS</h2>
+<p>The word <em>control plane</em> can refer to different scopes. In
+this paper, <strong>work control plane</strong> names the organizational
+layer (Paperclip or Multica); <strong>inference gateway</strong> names
+the provider access and resource layer (Bifrost or LiteLLM). A gateway
+vendor may call its product a control plane for inference. That is
+accurate within its scope, but it does not make the gateway the owner of
+the human research agenda.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Primary responsibility</th>
+<th>Illustrative components</th>
+<th>What it must not silently decide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Human</td>
+<td>Curiosity, values, goals, interpretation, consequential choices,
+learning</td>
+<td>Researcher, teacher, household member</td>
+<td>Delegation of authorship or responsibility</td>
+</tr>
+<tr>
+<td>Work control plane</td>
+<td>Persistent agenda, tasks, roles, state, approvals, artifacts</td>
+<td>Paperclip, Multica</td>
+<td>Whether machine output is meaningful to the person</td>
+</tr>
+<tr>
+<td>Decision layer</td>
+<td>Bounded labels, scores, novelty/contradiction flags, abstention,
+escalation</td>
+<td>Jev, Kev, Laya, NLI; Ollaya as a local serving option</td>
+<td>Truth, moral priority, or final authorization</td>
+</tr>
+<tr>
+<td>Agent layer</td>
+<td>Open-ended investigation, synthesis, coding, critique, tutoring</td>
+<td>Agent runtimes and skills</td>
+<td>Use of tools outside delegated scope</td>
+</tr>
+<tr>
+<td>Inference gateway</td>
+<td>Stable API, model/provider routing, keys, budgets, fallbacks,
+logging</td>
+<td>Bifrost, LiteLLM</td>
+<td>The research question or educational goal</td>
+</tr>
+<tr>
+<td>Tool and knowledge layer</td>
+<td>Access to sources, citations, notes, code, data, communications</td>
+<td>MCP, APIs, Zotero, browser, notebooks</td>
+<td>Authority to treat retrieved text as instructions</td>
+</tr>
+<tr>
+<td>Execution environment</td>
+<td>Process, files, isolation, credentials, reproducibility</td>
+<td>Workstation, VM, container, server</td>
+<td>More access than its OS and service permissions allow</td>
+</tr>
+</tbody>
+</table>
+<p>The table separates <em>functions</em>, not necessarily processes. A
+product may span several functions, and a prototype may combine layers
+in one application. Yet the distinctions are valuable for diagnosis: a
+false-positive novelty flag is a decision-layer problem; a wrong model
+selected despite a privacy rule is a gateway/policy problem; a draft
+sent without approval is a work and action-authorization problem.</p>
+<h3 id="decision-models-as-bounded-attention-filters">Decision models as
+bounded attention filters</h3>
+<p>TypeSafe describes Jev as answering typed questions with
+probabilities rather than generating prose. Open alternatives include
+Kev and Laya. Ollaya is a local daemon and API for serving several such
+models, including NLI and classification families; it is <strong>not
+itself a single decision model</strong>. Their suitability for a given
+research task remains empirical. [15–18]</p>
+<p>A proposed decision contract might return <code>question</code>,
+<code>candidate_label</code>, <code>score</code>,
+<code>model_version</code>, <code>evidence_pointer</code>, and
+<code>abstain_or_escalate</code>. The software then applies a versioned
+rule. For example: if a new paper is probably in scope, place it in a
+review queue; if the score is ambiguous or it conflicts with the
+existing map, ask for human attention; never allow a classifier alone to
+dismiss a paper permanently. Probabilities are model outputs, not
+automatically calibrated guarantees. Thresholds must be tested on the
+user’s own labeled examples, across changing topics and source types.
+[22, 23]</p>
+<p>A decision layer can also route <em>work</em>: select an inexpensive
+extraction path for routine items, summon a deeper agent for novel
+evidence, or ask a human to clarify a value-laden question. Such routing
+must carry the reason, confidence, and downstream effect into the work
+record. A fast decision that hides a valuable outlier is costly even if
+its per-call price is low.</p>
+<h3 id="gateway-as-resource-and-access-infrastructure">Gateway as
+resource and access infrastructure</h3>
+<p>Bifrost and LiteLLM expose a common interface over multiple providers
+and document routing, virtual keys, cost tracking, budgets, and
+fallbacks. They can help a Personal Agentic OS use an appropriate model,
+contain spending, and observe usage. [19–21] The earlier personal
+infrastructure plan selected Bifrost as the stable endpoint, with a
+private Tailscale ingress, an internal <code>copilot-api</code>,
+OpenCode Go as a prepaid workhorse, and OpenRouter as metered fallback.
+That is a <strong>deployment hypothesis</strong> for this prototype, not
+a universal requirement.</p>
+<p>The work layer should attach project and sensitivity metadata to
+requests; the gateway should enforce provider/model access and report
+cost and route decisions back to the work record. A decision model
+served outside an OpenAI-compatible generative endpoint may need a
+separate client or adapter; one gateway URL should not be assumed to
+handle every decision-model API. The system should record the
+<strong>effective</strong> provider and model after a fallback, not
+merely the requested alias. For privacy, the content and retention of
+gateway traces need their own policy.</p>
+<h3 id="an-example-crossing-the-layers">An example crossing the
+layers</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Step</th>
+<th>Layer doing the work</th>
+<th>What returns to the human record</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A person asks whether a new finding changes a research
+direction</td>
+<td>Human + work plane</td>
+<td>Question, motivation, current working model</td>
+</tr>
+<tr>
+<td>New papers arrive</td>
+<td>Tool + environment</td>
+<td>Source identifiers, timestamps, provenance</td>
+</tr>
+<tr>
+<td>A bounded model screens relevance and possible contradiction</td>
+<td>Decision layer</td>
+<td>Scores, labels, uncertainty, version</td>
+</tr>
+<tr>
+<td>An agent reads the strongest candidates and challenges the current
+model</td>
+<td>Agent + gateway</td>
+<td>Evidence, counterarguments, actual model and cost</td>
+</tr>
+<tr>
+<td>The system presents a claim and its strongest rival explanation</td>
+<td>Work plane</td>
+<td>A decision item with source links and unresolved questions</td>
+</tr>
+<tr>
+<td>The person revises the agenda or holds it open</td>
+<td>Human</td>
+<td>Rationale, changed understanding, next question</td>
+</tr>
+</tbody>
+</table>
+<p>This sequence makes <strong>human intervention a cognitive
+contribution</strong>, not just an approval click.</p>
+<h2 id="two-live-designs-paperclip-and-multica">4. Two live designs:
+Paperclip and Multica</h2>
+<h3 id="paperclip-goals-delegation-and-governance">Paperclip: goals,
+delegation, and governance</h3>
+<p>Paperclip describes itself as the layer above model runtimes: an
+organization with goals, an org chart, a task board, budgets, approvals,
+and an audit trail. A human board operator sets direction; a CEO agent
+can propose strategy and delegate work, subject to approval for
+important decisions. Agents wake for episodic execution rather than
+remaining continuously active. The company boundary separates goals,
+agents, tasks, and budgets. [1–3]</p>
+<p>The design makes authority unusually visible. Budgets can pause work
+at a limit; its connector action settings include
+<strong>Allowed</strong>, <strong>Ask first</strong>, and
+<strong>Off</strong>. This creates an explicit difference between
+drafting a message and sending it. The platform also documents routines
+and external connectors, although actual availability depends on
+version, configuration, and provider authorization. [1, 3, 7]</p>
+<p>Paperclip’s organizational metaphor is best understood as a policy
+and delegation structure. It may fit workflows that begin with a broad
+mission and recur across projects. The metaphor can also invite
+unnecessary layers of artificial management; the number of agents should
+be justified by distinct work and measurable benefit.</p>
+<h3 id="multica-a-shared-workspace-for-people-and-agents">Multica: a
+shared workspace for people and agents</h3>
+<p>Multica places issues, projects, comments, and assignments at the
+center. An agent can be assigned an issue, mentioned in a comment, or
+included in a squad. A connected runtime claims a run and invokes the
+configured AI tool; the durable issue and agent history remain in the
+workspace. Autopilots can start recurring work from schedules or
+webhooks, either creating an issue or running an agent directly. Skills
+package a <code>SKILL.md</code> with optional scripts, templates, and
+reference material for reuse. [4–6, 8]</p>
+<p>A squad’s leader routes work to relevant members; assigning an issue
+to a squad does <strong>not</strong> automatically run every member in
+parallel. The documentation presents the leader as a coordinator that
+delegates and later reevaluates progress. This matters because the
+presence of several agents is not evidence of independent verification
+or faster execution. [9]</p>
+<p>Multica’s present center of gravity is AI coding tools and
+issue-based collaboration. Its security documentation is direct: the
+platform does not provide a general filesystem sandbox for local runs.
+The daemon’s OS account is a real access boundary. An experiment
+involving private material should use an appropriately isolated account,
+VM, or other tested containment. [10]</p>
+<h3 id="comparison-at-the-level-of-design">Comparison at the level of
+design</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Paperclip</th>
+<th>Multica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organizing metaphor</td>
+<td>AI company and board</td>
+<td>Shared human–agent workspace</td>
+</tr>
+<tr>
+<td>Starting object</td>
+<td>Goal, company, delegated tasks</td>
+<td>Issue or project assignment</td>
+</tr>
+<tr>
+<td>Coordination</td>
+<td>Managerial reporting and delegation</td>
+<td>Assignees, mentions, squads</td>
+</tr>
+<tr>
+<td>Repeated work</td>
+<td>Routines</td>
+<td>Autopilots</td>
+</tr>
+<tr>
+<td>Human intervention</td>
+<td>Board and connector approvals, budget overrides</td>
+<td>Issue review, assignment and access controls</td>
+</tr>
+<tr>
+<td>Execution</td>
+<td>Agent adapters and heartbeats</td>
+<td>Connected runtime claims runs</td>
+</tr>
+<tr>
+<td>Strongest exploratory fit</td>
+<td>Governed recurring knowledge work</td>
+<td>Collaborative project and repository work</td>
+</tr>
+<tr>
+<td>License note</td>
+<td>Main repository states MIT</td>
+<td>Custom Multica License incorporates Apache 2.0 with additional
+conditions [12, 13]</td>
+</tr>
+</tbody>
+</table>
+<p>These are analytical emphases, not exclusive feature boundaries. Both
+products change rapidly. A deployment decision should check the current
+documentation, license, adapter support, connector permissions, and
+local security model rather than assume this snapshot is complete.</p>
+<h2 id="research-investigation-as-a-human-learning-loop">5. Research
+investigation as a human learning loop</h2>
+<p>The end of research investigation is not simply a report. It is a
+change in what the researcher knows, can question, can explain, and can
+do. The Personal Agentic OS therefore needs to represent a
+<strong>living research agenda</strong>: working questions, assumptions,
+competing accounts, evidence, uncertainty, methodological choices,
+decisions, and reflections on what was learned.</p>
+<pre class="mermaid"><code>flowchart TB
+    A[&quot;Wonder and orient&quot;] --&gt; B[&quot;Frame and plan&quot;]
+    B --&gt; C[&quot;Explore and gather&quot;]
+    C --&gt; D[&quot;Engage and question&quot;]
+    D --&gt; E[&quot;Synthesize and model&quot;]
+    E --&gt; F[&quot;Test and refine&quot;]
+    F --&gt; G[&quot;Learn and integrate&quot;]
+    G --&gt; A</code></pre>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Human movement</th>
+<th>Agent contribution</th>
+<th>Decision or record that preserves learning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wonder and orient</td>
+<td>Surface adjacent concepts, tensions, promising anomalies</td>
+<td>Why the question matters now</td>
+</tr>
+<tr>
+<td>Frame and plan</td>
+<td>Generate alternative framings and search strategies</td>
+<td>Chosen scope, assumptions, rejected framings</td>
+</tr>
+<tr>
+<td>Explore and gather</td>
+<td>Search, deduplicate, map citations, track new material</td>
+<td>Provenance and reasons for inclusion</td>
+</tr>
+<tr>
+<td>Engage and question</td>
+<td>Act as tutor, interlocutor, skeptic; pose contrasts</td>
+<td>Researcher’s own questions and provisional interpretation</td>
+</tr>
+<tr>
+<td>Synthesize and model</td>
+<td>Compare mechanisms and competing explanations</td>
+<td>Claim–evidence map with counterevidence</td>
+</tr>
+<tr>
+<td>Test and refine</td>
+<td>Propose falsifiers, sensitivity checks, small studies</td>
+<td>What would change one’s mind; test outcome</td>
+</tr>
+<tr>
+<td>Learn and integrate</td>
+<td>Prompt explanation in one’s own words and transfer to new case</td>
+<td>Reflection, revised model, next questions</td>
+</tr>
+</tbody>
+</table>
+<p>The loop is intentionally <strong>human-centered rather than fully
+automatable</strong>. Agent scaffolding can increase exposure to
+relevant evidence, help a person notice contradictions, and ask
+productive questions. The researcher must still encounter enough primary
+material to form and defend an interpretation. A summary can support
+that encounter; it cannot stand in for it.</p>
+<p>A useful interface might show a <em>question notebook</em> beside an
+<em>evidence ledger</em>: what I currently think, what supports it, what
+challenges it, how confident I am, and what I want to investigate next.
+The system can periodically ask the person to explain a concept without
+looking at its synthesis, apply it to a new case, or decide between
+rival interpretations. Corrections and surprising findings revise the
+agent’s future search policy. This is a learning loop rather than a
+content production pipeline.</p>
+<p>The decision layer complements the loop by spotting candidate
+novelty, contradiction, relevance, and ambiguity at scale. It should
+present these as invitations to inspect evidence, with an abstain path,
+rather than convert a score into a claim of truth. The work plane
+remembers open questions and unresolved disagreements; the gateway
+allocates stronger models when a harder analysis warrants their cost.
+Human attention is spent on the material most likely to change
+understanding.</p>
+<h2 id="human-interaction-is-the-real-design-challenge">6. Human
+interaction is the real design challenge</h2>
+<p>A control plane should compress machine activity into a small number
+of well-formed human decisions. The interface is less about watching
+agents “think” and more about making intent, status, evidence, and
+authority legible.</p>
+<p>A useful decision item answers five questions at a glance:</p>
+<ol type="1">
+<li><strong>What is proposed?</strong> Include the exact change or
+external action.</li>
+<li><strong>Why now?</strong> Link it to the goal, task, and
+evidence.</li>
+<li><strong>What could go wrong?</strong> State uncertainty, scope, and
+reversibility.</li>
+<li><strong>What happens if I decline or defer?</strong> Show the next
+safe state.</li>
+<li><strong>What decision is requested?</strong> Approve, edit, reject,
+or ask for more evidence.</li>
+</ol>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lane</th>
+<th>Example</th>
+<th>Default handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Observe</td>
+<td>New article found; diagnostic report generated</td>
+<td>Log and summarize</td>
+</tr>
+<tr>
+<td>Review</td>
+<td>Synthesis, slide deck, comparison brief</td>
+<td>Human checks quality before use</td>
+</tr>
+<tr>
+<td>Decide</td>
+<td>Choose research direction or purchase candidate</td>
+<td>Human chooses among evidence-backed options</td>
+</tr>
+<tr>
+<td>Authorize</td>
+<td>Send external email, publish grades, buy item</td>
+<td>Human approves exact action before execution</td>
+</tr>
+<tr>
+<td>Investigate</td>
+<td>Conflicting sources, failed run, suspicious instruction</td>
+<td>Pause dependent work and surface context</td>
+</tr>
+</tbody>
+</table>
+<p>The platform should minimize review fatigue by grouping routine
+observations, suppressing duplicates, and escalating only material
+changes. An approval queue that grows faster than it can be processed is
+a failed control mechanism. The aim is <strong>bounded autonomy with
+well-placed attention</strong>, not autonomy as a goal in itself.</p>
+<h2 id="applied-patterns">7. Applied patterns</h2>
+<p>The following are <strong>proposed workflows</strong>, not claims
+that either product ships them as turnkey templates. Each requires
+suitable data access, domain rules, and human oversight.</p>
+<h3 id="research-a-horizon-scan-with-an-evidence-trail">Research: a
+horizon scan with an evidence trail</h3>
+<p>A weekly scout searches an explicitly defined source set,
+deduplicates candidates, and records bibliographic identifiers, dates,
+abstracts, and links. A decision model proposes relevance, novelty, or
+contradiction flags with an abstain route; a human-reviewed sample
+estimates missed items. A critical agent checks the strongest candidates
+against the actual text where access permits, flags uncertain claims,
+and compares rival explanations. The researcher reads selected primary
+material, updates the question notebook, and decides which papers change
+the agenda. The gateway records which generative models were called and
+why.</p>
+<pre class="mermaid"><code>flowchart TB
+    Q[&quot;Research question and inclusion rules&quot;] --&gt; S[&quot;Source search and deduplication&quot;]
+    S --&gt; E[&quot;Evidence record with provenance&quot;]
+    E --&gt; V[&quot;Critical verification&quot;]
+    V --&gt; H[&quot;Researcher review&quot;]
+    H --&gt; Q</code></pre>
+<p>The evidence record should preserve search queries, databases,
+timestamps, screening reasons, source versions, and citation
+identifiers. It must distinguish a search-result snippet from a read
+full text. For systematic work, the workflow must be adapted to the
+relevant reporting and methodological standards; an agent-generated
+summary is not a substitute for reproducible screening.</p>
+<p><strong>Useful measures:</strong> relevant papers found per review
+hour, missed known papers, false positives, citation accuracy, cost,
+discoveries that changed a project decision, and the researcher’s
+ability to explain and apply a new insight later.</p>
+<h3 id="teaching-course-consistency-and-accessibility-checks">Teaching:
+course consistency and accessibility checks</h3>
+<p>A course agent compares the syllabus, schedule, assignment
+instructions, rubrics, slides, and LMS entries. It produces a
+discrepancy list with exact locations and proposed repairs. A second
+pass checks document structure, alt text, captions, links, and reading
+availability. The instructor reviews proposed edits and publishes
+them.</p>
+<p>Keep student records and submitted work within institutional rules.
+Grade decisions, individualized feedback with consequences, and
+student-facing communication should have explicit human review and
+appropriate access controls. A low-risk first pilot can use only public
+course materials and synthetic examples.</p>
+<p><strong>Useful measures:</strong> discrepancies caught before
+release, instructor review time, accessibility defects corrected, and
+student confusion reports.</p>
+<h3 id="service-meeting-preparation-and-follow-through">Service: meeting
+preparation and follow-through</h3>
+<p>A service agent assembles the agenda, prior minutes, relevant policy
+text, and open commitments into a brief. It marks which statements come
+from documents and which are its inferences. After a meeting, it
+proposes action items and follow-up drafts. The participant approves
+commitments and sends communications through the institution’s
+authorized channels.</p>
+<p><strong>Useful measures:</strong> missed commitments, preparation
+time, correction rate, and whether the brief actually improved a
+decision.</p>
+<h3 id="home-durable-vehicle-and-purchasing-records">Home: durable
+vehicle and purchasing records</h3>
+<p>A household workspace could retain service dates, registration
+deadlines, charging notes, diagnostic observations, and unresolved
+questions for a vehicle. A purchase workflow could collect candidates,
+current prices, warranty terms, owner evidence, and a decision matrix.
+Price and availability need a fresh check before a transaction. Payment,
+booking, disclosure of personal data, or contact with a third party
+should require explicit authorization.</p>
+<p>The benefit is continuity: the next comparison starts from a
+maintained record rather than a reconstructed chat. The record should
+also make it easy to correct an earlier assumption and see which
+downstream recommendations used it.</p>
+<h2 id="failure-modes-and-control-requirements">8. Failure modes and
+control requirements</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Mechanism</th>
+<th>Practical control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Coordinated error</td>
+<td>Several agents repeat the same weak source or model assumption</td>
+<td>Independent primary-source checks and explicit adversarial
+review</td>
+</tr>
+<tr>
+<td>Goal drift</td>
+<td>Subtasks optimize visible activity rather than the original
+objective</td>
+<td>Acceptance criteria, periodic goal review, stop rules</td>
+</tr>
+<tr>
+<td>Context decay</td>
+<td>Old instructions and facts persist after circumstances change</td>
+<td>Versioned sources, expiration, owner and date on decisions</td>
+</tr>
+<tr>
+<td>Prompt injection</td>
+<td>Untrusted content attempts to issue instructions through a tool
+result</td>
+<td>Treat source text as data; isolate capabilities; review sensitive
+actions</td>
+</tr>
+<tr>
+<td>Permission spillover</td>
+<td>A local run inherits broad OS or connector access</td>
+<td>Dedicated runtime identity, least privilege, action-level
+restrictions</td>
+</tr>
+<tr>
+<td>Review theater</td>
+<td>Approval requests hide the actual effect of an action</td>
+<td>Show exact payload, affected resources, evidence, and rollback
+path</td>
+</tr>
+<tr>
+<td>Cost loops</td>
+<td>Scheduled work or agent handoffs generate repeated runs</td>
+<td>Budgets, concurrency limits, deduplication, circuit breakers</td>
+</tr>
+<tr>
+<td>Output flood</td>
+<td>Plausible artifacts exceed human capacity to inspect</td>
+<td>Escalation thresholds, sampling, measurable quality gates</td>
+</tr>
+<tr>
+<td>Decision-model miscalibration</td>
+<td>A numeric score is treated as reliable outside its tested
+domain</td>
+<td>Local labels, calibration plots, abstention and drift checks</td>
+</tr>
+<tr>
+<td>Invisible fallback</td>
+<td>A gateway silently routes sensitive or demanding work elsewhere</td>
+<td>Allowed-provider policy, effective-route logging, fail-closed
+cases</td>
+</tr>
+<tr>
+<td>Learning displacement</td>
+<td>The person accepts a fluent synthesis without forming an
+interpretation</td>
+<td>Primary-source engagement, self-explanation and transfer checks</td>
+</tr>
+<tr>
+<td>Data leakage</td>
+<td>Private records flow to an external model or service</td>
+<td>Data classification, approved providers, retention review</td>
+</tr>
+</tbody>
+</table>
+<p>The MCP project’s security guidance documents risks around
+authorization and tool use, but a secure tool connection alone does not
+guarantee safe decisions about the content an agent reads or the action
+it chooses. The control plane needs policies at both the technical and
+work levels. [11, 14]</p>
+<p>A further challenge is <strong>evaluation independence</strong>. If
+the same model generates a finding and validates it using the same
+source summaries, the second pass may add little. Review must inspect
+primary evidence where possible and use tests or independent methods
+appropriate to the task.</p>
+<h2 id="an-evaluation-framework-for-real-adoption">9. An evaluation
+framework for real adoption</h2>
+<p>A pilot should begin with a baseline performed by the person or
+current workflow. Measure outcomes over repeated cycles, not one
+impressive demo.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Axis</th>
+<th>Question</th>
+<th>Possible measure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quality</td>
+<td>Is the result correct and useful?</td>
+<td>blinded review, error rate, missed items</td>
+</tr>
+<tr>
+<td>Attention</td>
+<td>Does it reduce interruption?</td>
+<td>review minutes, approval count, items escalated</td>
+</tr>
+<tr>
+<td>Continuity</td>
+<td>Can work resume reliably later?</td>
+<td>context reconstruction time, stale-state errors</td>
+</tr>
+<tr>
+<td>Timeliness</td>
+<td>Does it act when needed?</td>
+<td>latency from trigger to usable brief</td>
+</tr>
+<tr>
+<td>Economics</td>
+<td>Is the gain worth the expense?</td>
+<td>model and infrastructure cost per accepted output</td>
+</tr>
+<tr>
+<td>Control</td>
+<td>Were boundaries respected?</td>
+<td>unauthorized attempts, interventions, audit completeness</td>
+</tr>
+<tr>
+<td>Recoverability</td>
+<td>Can failures be diagnosed and repaired?</td>
+<td>mean time to identify failure, rollback success</td>
+</tr>
+<tr>
+<td>Learning</td>
+<td>Does the person understand more afterward?</td>
+<td>delayed explanation, transfer task, quality of new questions</td>
+</tr>
+<tr>
+<td>Agency</td>
+<td>Are goals and values still human-directed?</td>
+<td>rationale ownership, overrides, perceived control</td>
+</tr>
+<tr>
+<td>Triage</td>
+<td>Do small decision models focus attention without losing signal?</td>
+<td>recall at review budget, calibration, abstention rate</td>
+</tr>
+</tbody>
+</table>
+<p>The denominator matters. “Twenty reports produced” is not a success
+measure if only two were read. Track <strong>accepted, decision-relevant
+outputs per unit of human attention and cost</strong>. Record failures
+and near misses, including confident but unsupported claims.</p>
+<h3 id="a-bounded-six-week-pilot">A bounded six-week pilot</h3>
+<p><strong>Weeks 0–1:</strong> Select one workflow, such as a weekly
+literature horizon scan. Define sources, inclusion rules, a question
+notebook, excluded data, a delayed learning check, and a baseline from
+the existing process. Start with one worker and one review step. Record
+a small labeled set for decision-model evaluation; use a spending cap
+and read-only access where possible.</p>
+<p><strong>Weeks 2–3:</strong> Run in shadow mode. The decision layer
+proposes triage labels; the agent produces evidence records and a draft
+brief; the human uses the normal process. Compare missed findings,
+calibration, explanations, and time spent reviewing. Log gateway routes
+and costs. Correct the method before adding more agents.</p>
+<p><strong>Weeks 4–6:</strong> If shadow results are credible, let the
+workflow maintain its own queue and surface material findings or
+uncertain cases. Ask the researcher to explain and apply at least two
+findings after a delay. Keep publication, communication, purchase,
+grade, and policy decisions with the human. Compare learning, attention,
+quality, and costs against the baseline; continue, redesign, or
+stop.</p>
+<p>A successful pilot yields a versioned workflow specification, source
+and permission inventory, sample accepted and rejected outputs, cost
+log, and a short retrospective. Those artifacts are more valuable than a
+large cast of named agents.</p>
+<h2 id="where-the-category-may-go">10. Where the category may go</h2>
+<p>The following are <strong>forecasts</strong>, not current product
+guarantees.</p>
+<ol type="1">
+<li><strong>Portable work organizations.</strong> The reusable package
+may include roles, skills, permissions, workflows, evaluation criteria,
+and templates. A “literature review team” becomes more meaningful than a
+single “research bot.”</li>
+<li><strong>Model routing beneath stable identities.</strong> A decision
+layer may select the depth of work while a gateway selects an allowed
+provider and model according to cost, speed, privacy, context, and
+measured reliability. The named role and task history persist.</li>
+<li><strong>Attention as a scarce resource.</strong> Interfaces will
+compete on the quality of their decision inboxes, evidence displays, and
+escalation rules rather than the visual spectacle of many agent
+runs.</li>
+<li><strong>Policy that follows work.</strong> Permissions, data
+classifications, and review requirements may travel with a task across
+agents and runtimes, closing a gap between project intent and tool-level
+access.</li>
+<li><strong>Evaluation as part of the work record.</strong> Systems may
+store acceptance, correction, and downstream effects alongside outputs
+so organizations can learn which workflows earn trust.</li>
+</ol>
+<p>None of these outcomes is automatic. Portability depends on formats
+and integrations. Agent identity can become lock-in if history cannot be
+exported. More autonomous routing can obscure accountability unless a
+human can reconstruct why a model, tool, or delegated agent was
+chosen.</p>
+<h2 id="research-agenda-for-the-prototype">11. Research agenda for the
+prototype</h2>
+<p>The central question is: <strong>Can a layered agentic system improve
+a person’s understanding and capacity for judgment while respecting
+their goals and values, at a sustainable cost of money and
+attention?</strong> The following questions turn that aspiration into
+testable work.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Research question</th>
+<th>First study or observable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Human learning</td>
+<td>Does an agent-supported investigation improve delayed understanding
+and transfer compared with a conventional search-and-notes
+workflow?</td>
+<td>Within-person crossover on comparable topics; delayed explanation
+and novel-case task</td>
+</tr>
+<tr>
+<td>Epistemic agency</td>
+<td>When do summaries and recommendations help a researcher reason, and
+when do they induce passive acceptance?</td>
+<td>Compare evidence-first, synthesis-first, and question-first
+interfaces; code rationales and source engagement</td>
+</tr>
+<tr>
+<td>Question formation</td>
+<td>Can a persistent agenda produce better questions and research
+directions over several cycles?</td>
+<td>Blind expert assessment of question specificity, novelty,
+feasibility, and revision history</td>
+</tr>
+<tr>
+<td>Attention allocation</td>
+<td>Can decision models surface high-value anomalies at a fixed human
+review budget?</td>
+<td>Recall/precision curves on labeled paper streams; measure missed
+high-impact items and abstentions</td>
+</tr>
+<tr>
+<td>Calibration and drift</td>
+<td>Are Jev, Kev, Laya, and NLI judgments calibrated for the user’s
+domains and stable as topics change?</td>
+<td>Held-out, time-split labels; reliability diagrams and subgroup error
+audits</td>
+</tr>
+<tr>
+<td>Human intervention</td>
+<td>Which events warrant human sensemaking, ordinary review, or explicit
+authorization?</td>
+<td>Compare escalation policies by error, interruption, and perceived
+control</td>
+</tr>
+<tr>
+<td>Division of labor</td>
+<td>Which work benefits from bounded classifiers, open-ended agents,
+deterministic rules, or direct human action?</td>
+<td>Task-level ablations across accuracy, latency, cost, and
+interpretability</td>
+</tr>
+<tr>
+<td>Gateway economics</td>
+<td>Does decision-first triage reduce spend without sacrificing
+consequential discoveries?</td>
+<td>A/B routing comparison with effective provider, model, cost,
+latency, and accepted outcomes</td>
+</tr>
+<tr>
+<td>Privacy and provenance</td>
+<td>Can the system preserve source lineage and enforce data boundaries
+through fallback and delegation?</td>
+<td>Inject sensitive and adversarial test cases; audit end-to-end traces
+and policy violations</td>
+</tr>
+<tr>
+<td>Values and goals</td>
+<td>How should a person express changing priorities without reducing
+values to a brittle score?</td>
+<td>Participatory design; compare preference correction and goal
+revision over time</td>
+</tr>
+<tr>
+<td>Long-term trust</td>
+<td>Does the system become more useful through correction, or merely
+more confident and entrenched?</td>
+<td>Longitudinal study of overrides, stale assumptions, correction
+propagation, and trust calibration</td>
+</tr>
+</tbody>
+</table>
+<p>Three hypotheses deserve early falsification:</p>
+<ul>
+<li><strong>H1 — Learning:</strong> an evidence-first,
+question-generating assistant produces better delayed explanations than
+a polished-summary-first assistant, even when the latter is rated more
+convenient immediately.</li>
+<li><strong>H2 — Decision layer:</strong> calibrated triage plus
+abstention preserves nearly all expert-rated high-value findings while
+substantially reducing the number of items a human reviews. “Nearly all”
+and “substantially” must be preregistered for the domain and
+budget.</li>
+<li><strong>H3 — Gateway and work layer:</strong> model routing under
+explicit project policy reduces cost per <em>accepted insight</em> while
+retaining provenance and privacy; cost per raw output is an insufficient
+measure.</li>
+</ul>
+<h3 id="prototype-objects-and-instrumentation">Prototype objects and
+instrumentation</h3>
+<p>A minimal prototype needs six versioned objects:
+<strong>agenda</strong> (human aims and open questions),
+<strong>evidence item</strong> (source and provenance), <strong>decision
+record</strong> (typed judgment and uncertainty), <strong>work
+item</strong> (owner, state, method), <strong>insight</strong>
+(human-authored or explicitly adopted claim with rivals), and
+<strong>reflection</strong> (what changed in understanding and what to
+ask next). Every object should link to its predecessors, and a later
+correction should identify affected downstream work.</p>
+<p>Instrumentation should record model and prompt/version, gateway route
+and spend, decision schema and threshold, source identifier and access
+level, human review time, override, and outcome. Private content need
+not be retained in raw telemetry to measure these. The prototype should
+support export, correction, and deletion from the outset.</p>
+<p>A first build need not choose Paperclip <em>and</em> Multica or
+Bifrost <em>and</em> LiteLLM. One work plane, one gateway, a single
+bounded decision service, and one human research loop are enough to test
+the central claims. The layers are conceptual commitments; product
+choices can follow measured fit.</p>
+<h2 id="conclusion">12. Conclusion</h2>
+<p>The promising unit of agentic computing is <strong>work that changes
+human understanding with continuity</strong>: a question, evidence,
+bounded machine judgments, responsible execution, rival explanations,
+and a human interpretation that can be revised. Paperclip and Multica
+demonstrate organizational routes toward durable work. Decision models
+can focus attention; gateways can allocate resources. None of these
+layers alone supplies purpose.</p>
+<p>The practical test asks more than whether the system produces more.
+Does the person ask better questions, understand evidence more deeply,
+notice when an account fails, and remain able to direct the next step?
+Can that happen with less wasted attention and compute, while preserving
+control over data and consequential actions? The durable asset is a
+living body of methods, evidence, corrections, and human judgment that
+becomes more capable along with its owner.</p>
+<hr />
+<h2 id="notes-and-primary-sources">Notes and primary sources</h2>
+<p>These references support descriptions of current products, protocols,
+and selected empirical concerns. The layered architecture, learning
+loop, prototype, and forecasts are proposed research directions. Product
+and benchmark claims should be rechecked before implementation.</p>
+<ol type="1">
+<li>Paperclip, <a
+href="https://docs.paperclip.ing/guides/welcome/what-is-paperclip/">What
+is Paperclip?</a> and <a
+href="https://docs.paperclip.ing/guides/welcome/key-concepts/">Key
+concepts</a>.</li>
+<li>Paperclip, <a
+href="https://docs.paperclip.ing/guides/org/agents/">Agents</a>.</li>
+<li>Paperclip, <a
+href="https://docs.paperclip.ing/connectors/">Connectors and action
+permissions</a>.</li>
+<li>Multica, <a href="https://multica.ai/docs/agents">Agents, runtimes,
+and runs</a> and <a href="https://multica.ai/docs/how-multica-works">How
+Multica works</a>.</li>
+<li>Multica, <a
+href="https://multica.ai/docs/autopilots">Autopilots</a>.</li>
+<li>Multica, <a href="https://multica.ai/docs/skills">Skills</a>.</li>
+<li>Paperclip, <a
+href="https://docs.paperclip.ing/guides/day-to-day/costs/">Costs and
+budgets</a> and <a
+href="https://docs.paperclip.ing/guides/day-to-day/approvals/">Approvals</a>.</li>
+<li>Multica, <a href="https://multica.ai/docs/assigning-issues">Issues
+and assignment</a>.</li>
+<li>Multica, <a href="https://multica.ai/docs/squads">Squads</a>.</li>
+<li>Multica, <a href="https://multica.ai/docs/security-model">Security
+model</a>.</li>
+<li>Model Context Protocol, <a
+href="https://modelcontextprotocol.io/specification/2025-11-25">Specification</a>.</li>
+<li>Paperclip, <a href="https://github.com/paperclipai/paperclip">source
+repository and MIT license</a>.</li>
+<li>Multica, <a
+href="https://github.com/multica-ai/multica/blob/main/LICENSE">repository
+license</a>. This is a custom license; review current terms for a
+contemplated use.</li>
+<li>Model Context Protocol, <a
+href="https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices">Security
+best practices</a>.</li>
+<li>TypeSafe AI, <a href="https://typesafe.ai/">Jev and System One
+overview</a>; Spring AI, <a
+href="https://spring.io/blog/2026/09/21/spring-ai-typesafe-structured-judgment/">TypeSafe
+integration explanation</a>.</li>
+<li>Ollaya, <a href="https://github.com/ollaya-dev/ollaya">local
+decision-model runtime</a> and <a
+href="https://ollaya.dev/docs">documentation</a>.</li>
+<li>Ollaya, <a href="https://ollaya.dev/library/kev">Kev model
+description</a>.</li>
+<li>Ollaya, <a href="https://ollaya.dev/library/laya">Laya model
+description</a>.</li>
+<li>Bifrost, <a href="https://github.com/maximhq/bifrost">source
+repository</a>, <a
+href="https://docs.getbifrost.ai/features/governance/virtual-keys">virtual
+keys</a>, and <a
+href="https://docs.getbifrost.ai/features/governance/budget-and-limits">budgets</a>.</li>
+<li>LiteLLM, <a href="https://docs.litellm.ai/docs/">gateway
+overview</a>, <a
+href="https://docs.litellm.ai/docs/proxy/virtual_keys">virtual keys</a>,
+and <a href="https://docs.litellm.ai/docs/proxy/users">budgets</a>.</li>
+<li>Bifrost, <a
+href="https://docs.getbifrost.ai/providers/provider-routing">provider
+routing</a>; LiteLLM, <a
+href="https://docs.litellm.ai/docs/routing">routing</a>.</li>
+<li>Rafe and Das, <a
+href="https://arxiv.org/abs/2609.24052"><em>Calibrated Decisions at
+Scale</em></a> (2026 preprint): an example of domain-specific
+calibration and human audit, not general validation for research
+triage.</li>
+<li>Sun and Xu, <a href="https://arxiv.org/abs/2609.26758"><em>Type-Safe
+Is Not Error-Free</em></a> (2026 preprint): reports sensitivity of typed
+decision heads to option naming; findings need replication and
+task-specific evaluation.</li>
+</ol>
+<h3 id="open-design-choices">Open design choices</h3>
+<ul>
+<li>Define the first bounded research domain and human baseline.</li>
+<li>Specify a decision schema and abstention policy before comparing Jev
+with local alternatives.</li>
+<li>Choose one work plane and one gateway for the pilot, based on actual
+integration tests.</li>
+<li>Design a human-facing evidence and question notebook that makes
+uncertainty and learning visible.</li>
+</ul>
