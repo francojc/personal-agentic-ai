@@ -1,5 +1,7 @@
 # Personal Agentic AI
 
+> **Personal PAOS lab:** start with [hands-on setup workbook](docs/HANDS-ON-LAB.md). Operator-led learning replaces automatic implementation. Workshop instructions below describe separate legacy stack; do not run them to reset existing VM.
+
 A private, UI-first AI workspace built from **Open WebUI + Bifrost + TSDProxy + Tailscale**.
 
 The goal is simple: install the container runtime and Tailscale once, start the stack, then do normal model and workspace configuration in the browser.

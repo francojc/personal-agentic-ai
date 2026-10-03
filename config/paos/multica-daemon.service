@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User=paos-worker
 Group=paos-worker
-WorkingDirectory=/srv/paos/workspaces
+WorkingDirectory=/var/lib/paos/home
 Environment=HOME=/var/lib/paos/home
 Environment=PATH=/opt/paos/node/bin:/usr/bin:/bin
 # Native Pi backend runs OUR launcher instead of raw pi. See docs/COMPATIBILITY.md.

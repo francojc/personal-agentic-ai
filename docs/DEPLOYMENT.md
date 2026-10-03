@@ -2,7 +2,9 @@
 
 ## Status
 
-Tier 0 steps 1–4 complete: discovery, candidate pins, runtime contract and gateway/tool ownership documented. Step 5 provisioning/recovery gate approved; Debian guest provisioning next. This is not an installation guide yet. Existing setup scripts still launch the legacy stack and must not be used for PAOS.
+**Operator-led reset:** follow [hands-on setup workbook](HANDS-ON-LAB.md). Implementation queue paused; prior approvals and procedures below do not authorize assistant-led execution under new working mode. Existing VM/data preserved; no deployment changes made for reset.
+
+Tier 0 and first prototype steps 1–14 complete; step 15 (auditable per-run records and cost reconciliation) is active. See `docs/PROGRESS.md` for current state and next actions. Guest is in **mock test mode** with a fake provider key; not ready for real tasks. No paid calls or real user data. Steps 17–18 encrypted independent backup/restore and operator search/Zen credentials remain go-live gates. Legacy Mac/OrbStack stack remains untouched.
 
 ## Approved decisions
 
@@ -11,7 +13,7 @@ Tier 0 steps 1–4 complete: discovery, candidate pins, runtime contract and gat
 | Target | New minimal Debian 13 amd64 VM on Proxmox; no desktop |
 | Allocation | 4 vCPU, 8 GiB RAM, 96 GiB NVMe-backed disk; preserve host reserve and existing guests |
 | First workflow | Public research → cited report inside restricted workspace |
-| Provider/budget | OpenCode Zen; $20/month total, $0.50/run; exact model pending compatibility review |
+| Provider/budget | OpenCode Zen, candidate model `minimax-m2.7`; $20/month total, $0.50/run. Bifrost pricing override and live budget enforcement still unverified; no real key/calls |
 | Execution limits | One active run, 15 minutes, 30 tool calls, two transient retries per request; retries count toward limits |
 | Privacy | Sensitive data must remain home-local; private/unknown tasks hold in v0.1; GPU VPS is not an eligible private route |
 | Migration | Fresh PAOS state; wholesale legacy code/documentation replacement, legacy runtime data preserved untouched |
@@ -19,13 +21,13 @@ Tier 0 steps 1–4 complete: discovery, candidate pins, runtime contract and gat
 
 ## Blocking gates
 
-- Confirm Multica ↔ Pi protocol support and exact model/gateway interoperability before provisioning.
-- Define guest networking, administrator access and Tailnet enrollment before creating VM; no implicit Tailnet policy changes.
-- Define encrypted independent backup destination, retention and secret recovery before real-data go-live.
-- Locate any live legacy deployment before cutover; no shutdown/data deletion authorized by source-code replacement.
-- Configure enforceable model budgets and reconcile reported versus estimated spend before paid workload tests.
+- **Before real inference:** add/check custom Bifrost pricing override for `minimax-m2.7`; prove nonzero gateway cost and `$20` VK budget enforcement with mock. Zen key is not configured for real use; if one is added, disable automatic reload and enforce workspace cap first.
+- **Research quality:** choose a search backend and securely provision its key. DuckDuckGo HTML returned anti-bot challenge; Brave support is implemented but unconfigured.
+- **Before real data/go-live:** choose independent encrypted backup destination, retention and secret escrow; automate and test restore (steps 17–18).
+- **Before cutover:** legacy Mac/OrbStack stack is explicitly preserve-only; no shutdown/deletion authorized. Source replacement follows backup/restore and explicit approval.
+- **Tailnet:** review key expiry and ACLs; do not alter existing Tailnet policy without approval.
 
-Operator explicitly deferred backup/network/admin details to the deployment gate. Sanitized host inventory lives in gitignored `discovery.local.md`; no credentials or private infrastructure identifiers belong here.
+Sanitized host inventory lives in gitignored `discovery.local.md`; no credentials or private infrastructure identifiers belong here.
 
 ## Recovery inventory and rollback proposal
 
@@ -58,7 +60,7 @@ No paid model calls until Zen credential is configured securely, auto-reload dis
 
 Admin SSH key is the operator's default public key (`~/.ssh/id_ed25519.pub`); Proxmox itself is reached through Tailscale SSH, so no key was inherited from there. Replace in cloud-init/`authorized_keys` if a dedicated key is preferred.
 
-Open items: (1) disable Tailnet key expiry for `paos-control` and review ACL tags in the Tailscale admin console (operator action; no policy changed); (2) systemd-resolved listens on LLMNR 5355 – blocked by UFW, optionally disable; (3) the Docker-published-port/UFW bypass must be handled by loopback-only binds (verify in step 9/28); (4) no PAOS application services deployed yet.
+Open items: (1) operator review of Tailnet key expiry and ACLs; (2) systemd-resolved LLMNR 5355 is UFW-blocked (optionally disable); (3) Bifrost custom-model pricing override and actual `$20` VK budget still need verification in step 15; (4) no Brave key/search backend or real Zen key; (5) mock test mode must be exited per `docs/PROGRESS.md` before production config.
 
 ## Compose topology (step 7)
 
@@ -66,14 +68,14 @@ Two projects, one wrapper: `scripts/paos.sh`. Never run bare `docker compose` or
 
 | Project | Source | Notes |
 |---|---|---|
-| `paos` | `compose.paos.yaml` | Bifrost `v2.2.5` only for now; loopback-only publish; caps dropped, memory/PID/CPU limits |
+| `paos` | `compose.paos.yaml` | Bifrost `v2.2.5` + gateway filter; loopback-only publish; caps dropped, memory/PID/CPU limits. Currently recreated with test-only mock config; see test-mode exit steps below |
 | `multica` | `vendor/multica` at `v0.6.1` (`2ea01ae`), verified by `vendor-fetch` | Vendor compose unmodified; images tagged `v0.6.1`; its Postgres uses floating `pgvector/pgvector:pg17` – pin by digest in step 21 |
 
-Secrets live in `/srv/paos/secrets/{paos,multica}.env` (0600, outside Git); `init-secrets` never overwrites. Commands: `vendor-fetch`, `init-secrets`, `config`, `up`, `stop`, `down` (never removes volumes), `status`, `logs`. Both projects validated and all pinned images publish `amd64` manifests (2026-10-03). Nothing started yet. The Multica daemon runs on the host as `paos-worker` (not in Compose), per upstream design.
+Secrets live in `/srv/paos/secrets/{paos,multica}.env` (0600, outside Git); `init-secrets` never overwrites. Commands: `vendor-fetch`, `init-secrets`, `config`, `up`, `stop`, `down` (never removes volumes), `status`, `logs`. Both projects validated and pinned runtime images publish amd64 manifests (2026-10-03). Services are running. The Multica daemon runs on the host as `paos-worker` (not in Compose), per upstream design.
 
 ## Services and worker runtime (step 8)
 
-Running (2026-10-03): Multica `v0.6.1` (`readyz` db+migrations ok, frontend 200) and Bifrost `v2.2.5` (healthy), all bound to loopback. Not yet configured: Bifrost provider/VK, Multica workspace/agent (steps 9–12).
+Running (2026-10-03): Multica `v0.6.1` (`readyz` db+migrations ok, frontend 200), Bifrost `v2.2.5` (healthy) plus loopback gateway filter, and scripted `paos-mock-zen`. Multica workspace/agent and Bifrost VK are configured. Guest is explicitly in mock test mode; see `docs/PROGRESS.md` for restoration steps.
 
 Worker runtime (root-owned, `/opt/paos`): Node `v22.23.3`, Pi `1.0.1` (`--ignore-scripts`), Multica CLI `0.6.1` (checksum-verified), `bubblewrap 0.12.0`; installed by `scripts/install-worker-runtime.sh`. Launcher and policy code in `runtime/` installed by `scripts/install-worker-config.sh`; config `/etc/paos/worker.json` (template `config/paos/worker.json.example`); state/ledger `/var/lib/paos`.
 
@@ -82,9 +84,9 @@ Design as built:
 - Launcher: validates args (rejects everything but Multica's invocation; model is forced), requires an allow-listed agent and `public` sensitivity (unresolved = HOLD, exit 3), checks the monthly ledger, takes a single-run lock, then runs Pi inside `bwrap` (cleared env, only `/work`, session file, read-only runtime/config, no `/home`, `/srv`, Docker socket or Multica token). Tools: `web_search`, `web_fetch`, `write_report` only.
 - Limits enforced outside the sandbox from Pi's JSONL stream: 900 s deadline, 30 tool calls, per-run cost with a worst-case-request margin (unknown cost fails closed), cancellation via signals; success requires `agent_settled` and a non-error terminal turn.
 - Metadata-only JSONL under `/var/lib/paos/runs/` and a spend ledger; no prompts or fetched pages logged.
-- Unit tests: `node --test runtime/test/*.test.mjs` (18 passing locally and on the guest).
+- Unit tests: `node --test runtime/test/*.test.mjs` (42 passing locally; redeploy latest runtime and rerun on guest before step 16).
 
-Known gaps carried to later steps: sensitivity resolver (`runtime/sensitivity.mjs` is a stub returning `unknown`; step 10), gateway key/VK and filtered gateway port (steps 9/11), per-uid network egress rules (step 11), live end-to-end run (step 12).
+Step-8 implementation now includes live sensitivity resolution, gateway VK/filter, per-uid egress policy and mock end-to-end execution (steps 9–14). Remaining gaps are cost reconciliation, provider-backed search and human acceptance evidence.
 
 ## Access layout (step 9)
 
@@ -92,7 +94,7 @@ One origin: `https://paos-control.<tailnet>.ts.net` (guest-level `tailscale serv
 
 Verified 2026-10-03 from the operator workstation: `/health` 200 (commit matches pin), `/` and `/api/config` 200 with a valid certificate, `/ws` and `/api/daemon/ws` reach the backend (400/401, not the frontend). From the Proxmox LAN only SSH (22) is open; 3000/8080/8081/5432 are closed. Postgres is unpublished. Bifrost admin remains loopback-only.
 
-Sign-in: `ALLOW_SIGNUP=true` is limited by `ALLOWED_EMAILS` (set to the operator's address; no email service, so the verification code is read from backend logs). Set `ALLOW_SIGNUP=false` after the first account exists. The first-time Bifrost setup token and admin credentials are an operator step (never given to the worker; step 11 blocks the worker uid from loopback admin ports).
+Sign-in: the initial account was bootstrapped for the operator; `ALLOW_SIGNUP=false` is now set. For login, request a code and read it from backend logs via `./scripts/paos.sh logs multica backend` (no email service configured). Bifrost admin credentials are local-only in the protected secret file; worker uid cannot reach its admin listener.
 
 ## Sensitivity labels and live policy test (step 10)
 
@@ -109,6 +111,73 @@ Live results on the pinned stack (2026-10-03), workspace `PAOS`, agent `Research
 Operational notes: Multica shows a held run as a failed task ("pi exited with error: exit status 3"); the reason is in `/var/lib/paos/runs/<month>.jsonl` (`held`/`policy_decision`). A bug found and fixed during this test: a run lock left behind after an internal error; the launcher now releases the lock on any exit and reclaims stale locks (`runtime/lock.mjs`, tested). Signup is now closed (`ALLOW_SIGNUP=false`); sign in with the allow-listed email using the code from `./scripts/paos.sh logs multica backend`.
 
 Known limitation: the daemon's Multica credential (a personal access token for the operator account, in the `paos-worker` home) is readable by the launcher user. The Pi process is sandboxed without it, but a sandbox escape would hold operator-level Multica access. Mitigation planned: dedicated low-privilege Multica member/PAT before real-data go-live (tracked in step 26 review).
+
+## Credential and network isolation (step 11)
+
+| Secret | Held by | Not available to |
+|---|---|---|
+| `ZEN_API_KEY` | Bifrost currently receives test-only fake key; no real Zen credential is set | worker, sandbox, Multica |
+| Bifrost admin user/password, `BIFROST_ENCRYPTION_KEY` | `/srv/paos/secrets/paos.env` (0600 `paos`), Bifrost env | worker uid (file unreadable; admin port blocked) |
+| Worker virtual key `PAOS_WORKER_VK` (`sk-bf-…`, model `zen/research` only; $20/month budget configured but not effective until cost override works) | `/etc/paos/gateway.key` (0640 `root:paos-worker`); passed to the sandboxed Pi as env | provider key, admin API |
+| Multica task token (`MULTICA_TOKEN`) | daemon -> launcher only (label lookup); sandbox env is cleared | sandboxed Pi |
+| Multica daemon PAT, DB/JWT secrets | `paos-worker` home / `multica.env` | sandbox (see known limitation) |
+
+Gateway: Bifrost `v2.2.5` loads `config/paos/bifrost/config.json` (authoritative file; admin auth on; content logging off; custom provider `zen` = OpenAI-compatible, chat completions only, retries 0; static alias `research` -> `minimax-m2.7`; one VK). Worker reaches only `127.0.0.1:8082`, an nginx filter that proxies `POST /v1/chat/completions` and returns 404/403 for everything else. Verified: no auth 401; wrong key 401; allowed key with model `zen/other` 403 (`model_blocked`); provider `openai/*` rejected; `/api/*`, `/`, `/v1/models` 404 via the filter.
+
+Worker egress (`scripts/worker-firewall.sh`, unit `paos-worker-firewall.service`): per-uid iptables owner rules. Allowed: DNS stub, `:8082` filter, own Tailnet HTTPS (daemon -> Multica), public web 80/443 (IPv4 and IPv6 `2000::/3`). Rejected: loopback admin ports (Bifrost 8081, Multica 8080/3000), LAN, other Tailnet peers (incl. Proxmox), link-local/metadata, Docker bridges, IPv6 ULA/loopback. Verified as `paos-worker` on the guest; admin user unaffected. The daemon, launcher and sandboxed Pi share this uid, so the policy is the union of what they need.
+
+Fixes found: the daemon refuses to start with its working directory under the workspaces root (Multica writes a task marker there) – unit now uses `/var/lib/paos/home`.
+
+Known limitations: (1) shared worker uid as above; (2) the Pi sandbox is `bwrap` on the same kernel, not a VM; (3) Zen key, spend limits and auto-reload still need operator action before any paid call.
+
+## Research run (step 12) – mechanics proven against a mock, research quality pending
+
+> [!WARNING]
+> **TEST MODE currently active on the guest**: running Bifrost container uses the test-only bind mount `tests/mock/bifrost.config.json` (provider `zen` -> scripted mock `paos-mock-zen`, private-network allowed) and `/srv/paos/secrets/paos.env` holds a fake `ZEN_API_KEY` (backup: `paos.env.pretest`). No real provider is contacted. Exact reversible restoration steps are in `docs/PROGRESS.md`; do not enable real inference until pricing/budget and operator credentials are verified.
+
+Result (2026-10-03): a `public`-labelled Multica issue ran Multica -> daemon -> `paos-pi` launcher -> bubblewrap-sandboxed Pi 1.0.1 -> filtered gateway -> Bifrost (VK auth, alias `research` -> `minimax-m2.7`) -> mock model, streaming with tool calls. Run `completed`; 4 turns, 3 tool calls (`web_search`, `web_fetch`, `write_report`); `report.md` written in the run workspace (SHA-256 logged); cost computed from Pi usage and ledgered; tool steps visible in Multica run messages.
+
+Defects found and fixed: Pi needs a writable agent dir (`/agent` is now a per-run, secret-free temp dir bound rw); `web_search` via DuckDuckGo HTML is blocked by an anti-bot challenge (HTTP 202) from this host, so keyless search was replaced by a pluggable backend that fails loudly. **Operator decision/input needed:** choose a search provider and provision its key securely. Brave Search API is implemented (`/etc/paos/search.key`, 0640 `root:paos-worker`); alternative is self-hosted SearXNG. Until configured, `web_search` errors clearly and the model may only use known URLs with `web_fetch`; do not claim general web research works.
+
+Not yet proven (tracked in steps 15, 24–27): Bifrost reports zero cost for custom `zen/minimax-m2.7`; the `$20` gateway VK budget is ineffective until a custom pricing override is added and tested. The PAOS ledger uses Pi's configured local estimate. Real Zen tool-call reliability/citation quality and a real-search backend remain untested. Final reply is configured to include report, but latest deployed prompt/version still needs verification.
+
+## Private-context ingress control (step 13)
+
+The worker is public-only by construction, and the check is continuous, not just at launch:
+
+1. **No private inputs exist for it.** The sandbox has no generic read/shell tools, no host files, no memory/embedding stores; the only inputs are the labelled issue text and public web content.
+2. **Sensitivity gate** (`runtime/gate.mjs`): while a run is active the launcher re-resolves the issue labels every 3 s (and at every `turn_end`) and publishes the verdict to `/gate/state` (read-only mount). Any non-public verdict (a `private` label added, `public` removed, marker/agent mismatch) is terminal: the launcher records `held` (exit 3) and kills the run. Labels only tighten; a run cannot be revived by re-adding `public`. Lookup *errors* are tolerated for up to 3 consecutive checks but outbound activity is blocked meanwhile.
+3. **Fail-closed in the sandbox** (`runtime/extensions/paos-research.mjs`): every tool call is blocked unless `/gate/state` reads exactly `public` (missing/garbled = closed), and `before_provider_request` replaces the whole payload with a single placeholder message and no tools, so nothing from the conversation can reach the provider after the gate closes.
+4. **Tool allow-list** is enforced twice (`--tools` and the extension); URL fetches are public-only (connect-time address filter plus per-uid firewall).
+
+Verified live: a run labelled `public` was stopped within seconds after `private` was added (ledger `held`, exit 3, no later model request); with the gate pre-closed the model endpoint received one sanitized message, no tools and none of the task text. Latest local suite: 42 passing (policy, net, monitor, sensitivity, lock, gate, extension, reconciliation); guest has an earlier runtime snapshot and must be refreshed/retested in step 16.
+
+Residual risk (accepted for v0.1): a model request already in flight, or started within one poll interval (<=3 s) of a label change, was authorised when sent and cannot be recalled. Hard-real-time guarantees would need the launcher in the request path (e.g. gateway-side check), deferred to Tier 3.
+
+Memory, embeddings and external search added later must pass through this same gate and sensitivity labelling before they are enabled for the worker.
+
+## Execution limits (step 14) – verified live against the mock
+
+| Limit (approved) | Enforced by | Live result |
+|---|---|---|
+| One active run | daemon `MULTICA_DAEMON_MAX_CONCURRENT_TASKS=1`, agent max 1, launcher lock | second/third issue stayed `queued` until the running one finished |
+| 15 min deadline | launcher timer (SIGTERM then SIGKILL) | deadline set to 15 s for the test: killed at 15 s, `failed`, reason recorded, cost logged |
+| 30 tool calls | launcher monitor (kill) + in-sandbox extension (blocks call 31) | loop mock stopped at the limit; `tool-call limit (30) exceeded` |
+| $0.50/run | launcher `RunBudget` from Pi's locally configured usage estimate (worst-case-request margin $0.03; unknown cost fails closed) | costly mock killed after 2 turns; Bifrost custom-provider cost was zero in logs, so gateway VK budget is not yet enforceable until step 15 pricing reconciliation |
+| 2 transient retries/request | Pi `retry.maxRetries=2`, `provider.maxRetries=0`, Bifrost `max_retries=0` (single owner) | 2 injected 503s: recovered (run completed, 6 upstream requests incl. failures); 3 injected 503s: failed after exactly 3 attempts |
+| No hidden model traffic | Pi settings pinned per run: compaction off, cache-warming off, telemetry off | – |
+| Cancellation | Multica cancel hard-kills the launcher (no signal handler can run); `bwrap --die-with-parent` takes the sandbox down | status `cancelled`; no leftover processes. The next launch reconciles: the killed run is ledgered `interrupted` at last logged cost + one worst-case request, and stale `agent-*`/`gate-*` dirs and locks are cleared (`runtime/reconcile.mjs`) |
+| No automatic replay | no external-write tools exist; Multica did not auto-retry any failed/held/limit-killed run (1 run each) | – |
+
+Per-turn `usage` events (cumulative cost) are logged so accounting survives a hard kill. Defects found and fixed: reconciliation is idempotent (`interrupted` terminal), cancellation leaves no active processes, stale dirs/locks are cleaned on next launch, and `web_fetch` output is capped at 12k chars. Synthetic test history in `/var/lib/paos` must be archived/reset before real usage.
+
+Escalation: there is none. A failed run stays failed; a human re-runs it. Sending, purchasing, pushing and admin actions are not implemented for this worker.
+
+Housekeeping: the test ledger/logs in `/var/lib/paos` contain synthetic runs; reset them (move aside) before real use so the monthly allowance starts clean.
+
+## Step 15 – next auditability work
+
+`docs/PROGRESS.md` contains handoff checklist. Critical gap found: Bifrost logs `cost: 0` for the custom Zen provider, so its configured VK budget currently cannot enforce spend. Repository configs now contain pinned custom pricing for `minimax-m2.7` (input `$0.30/M`, output `$1.20/M`, cache-read `$0.06/M`), but guest deployment, nonzero mock log cost and deliberate VK budget-rejection test remain outstanding; do not treat `$20` budget as reliable. Local PAOS changes add config hash/version and trusted issue ID; `scripts/paos-cost-report.mjs` compares Pi estimates against Bifrost logs by VK/provider/model/time window. Deploy and test against mock only. Leave provider actual `unknown` until account usage is available. Human acceptance remains `not reviewed` until issue timeline confirms human actor.
 
 ## Authority and references
 

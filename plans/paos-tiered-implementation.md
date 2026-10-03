@@ -4,6 +4,14 @@
 
 Implement findings from the review of `plans/personal_agentic_os_whitepaper.md` and `plans/personal_agentic_os_runbook.md`. Target: useful, bounded personal workflows inside a personal Tailnet, not a miniature cloud platform. This plan governs implementation sequencing; older documents remain conceptual references until reconciled.
 
+## Operator-led learning reset
+
+Implementation queue paused at operator request. Follow [hands-on setup workbook](../docs/HANDS-ON-LAB.md): operator performs setup and verifies browser/VM behavior; assistant documents and troubleshoots. No automatic deployments or remote changes. Existing architecture, privacy, spending, recovery, and preservation gates remain references. Checkpoint below records prior prototype work, not authorization to resume it.
+
+## Execution checkpoint – 2026-10-03
+
+**14/31 steps complete. Step 15 active; steps 16–31 not started.** See [`docs/PROGRESS.md`](../docs/PROGRESS.md) for live/test-mode state, evidence, blockers and exact next actions. Guest currently runs a scripted mock provider with a fake key; do not perform real inference or treat synthetic cost as billing. Do not mark step 15 complete until configuration/version provenance and Pi-vs-Bifrost cost reconciliation work. Steps 17–18 (independent encrypted backup and restore) block real-data go-live; step 19 legacy replacement/cutover waits for that recovery gate and explicit approval.
+
 ## Approach
 
 Use one minimal Debian 13 VM (no desktop) on Proxmox, host-level Tailscale inside the guest, independently managed PAOS and vendor Multica Compose projects, and one restricted worker. First workflow, confirmed by operator: public research → cited report. Replace the old stack wholesale, including obsolete code and documentation; preserve recovery exports until explicit data-deletion approval. Prove the workflow before adding classifiers, vector memory, dashboards, or GPU inference. Private/unknown tasks hold until an approved route exists.
@@ -48,7 +56,7 @@ Create local, gitignored `discovery.local.md` containing sanitized evidence, tim
 | Guest resources | `lscpu`, `free -h`, `lsblk -f`, `df -hT`, `findmnt /srv`; architecture, swap, current load | Approve allocation after accounting for host reserve and thin-provisioning capacity; no guessing from instantaneous free RAM |
 | Docker/storage | Docker/Compose versions, daemon readiness, Docker data root, mounts, project/volume names, occupied ports via `ss -lnt` | New disk versus existing filesystem; protect Docker data and database volumes, not just `/srv`; approve cutover |
 | Tailnet | Local device status, approved server identity, DNS and endpoint reachability; inspect effective grants only with authorized access | Admin device/user, allowed destinations/ports, guest hostname and TLS approach; do not overwrite existing Tailnet policy |
-| Model/provider | Pinned gateway/model compatibility, tool-call support, provider account availability without exposing keys | Provider choice, monthly total budget, per-run budget and timeout, maximum concurrency; block paid calls until set |
+| Model/provider | Pinned gateway/model compatibility, tool-call support, provider account availability without exposing keys | Zen selected; $20/month and $0.50/run approved. Need search-backend selection/key and Zen credential/billing caps before real requests. Block paid calls until verified |
 | Privacy/data | Existing labels, input sources, retention requirements if documented | May sensitive data leave home for a VPS? Which data is prohibited? Unknown remains hold; no real private-data tests |
 | Existing state | Old volumes, configuration, workspaces, dependent clients, and recoverable exports on each authorized host; existing 8 GiB agent VM is not presumed disposable | Approve a new VM ID rather than repurposing existing guests. What must migrate: Bifrost settings, chat history, files, or nothing? Wholesale code replacement does not authorize data destruction |
 | Recovery | Available backup destination, capacity, encryption support, restore tooling | Backup target, retention, acceptable downtime/data loss, secret escrow; block real-data go-live without restore path |
@@ -68,7 +76,9 @@ Use VirtIO devices and guest agent support; install only needed Debian packages,
 
 ## Steps – tiered delivery
 
-### Tier 0 – discover, resolve compatibility, approve allocation
+### Tier 0 – discover, resolve compatibility, approve allocation (steps 1–5 complete)
+
+Evidence and operator decisions: `docs/DEPLOYMENT.md`; source-reviewed pins/contracts: `docs/COMPATIBILITY.md`, `docs/RUNTIME-CONTRACT.md`, `docs/GATEWAY-CONTRACT.md`.
 
 - [x] Recover the inventory and operator answers above. Record budget/privacy unknowns as explicit blockers, not permissive defaults. Approved decisions: `docs/DEPLOYMENT.md`; local evidence: gitignored `discovery.local.md`.
 - [x] Pin candidate Multica, Pi, Bifrost and model versions. Verify Multica’s supported runtime protocol against Pi; custom command registration alone is not proof of compatibility. Inspect pinned docs/source before choosing adapter transport. [D1–D3] Source review and candidate pins: `docs/COMPATIBILITY.md`. Native Pi JSON backend confirmed; live interoperability remains a deployment acceptance test.
@@ -78,18 +88,22 @@ Use VirtIO devices and guest agent support; install only needed Debian packages,
 
 **Exit:** supported integration path identified, resource/budget proposal approved, unresolved requirements scoped to blocked later tiers. If a minimal adapter is not feasible, stop for a design decision; do not silently substitute a different runtime.
 
-### Tier 1 – smallest end-to-end v0.1 workflow
+### Tier 1 – smallest end-to-end v0.1 workflow (steps 6–14 complete; mock only)
+
+Verified prototype state and limits: `docs/PROGRESS.md`. Do not infer live-provider quality or paid-cost enforcement from mock results.
 
 - [x] Provision the approved minimal Debian 13 VM (done 2026-10-03: VM 103; see `docs/DEPLOYMENT.md`, `scripts/provision-guest.sh`); verify Debian 13 support in pinned Docker/Tailscale installation docs rather than reusing Ubuntu repository commands. Install guest-level Tailscale and Docker; no application changes to Proxmox host. Separate deployment administrator from worker identity. Worker gets no sudo or Docker-group access. [D4–D5]
 - [x] Use two explicit Compose projects (done: `compose.paos.yaml`, `scripts/paos.sh`): PAOS services and pinned vendor Multica. One wrapper targets both for status/start/stop/backup; never mix standalone and merged invocations. Keep vendor state/schema separate. Validate paths and resolved configuration without logging secrets. [D1, D4]
 - [x] Deploy Multica, Bifrost and one restricted worker/adapter (done; see `docs/DEPLOYMENT.md` "Services and worker runtime"). No separate policy daemon required: a small tested module in the adapter enforces rules. No PAOS memory database or Redis yet; use Multica run records plus local metadata-only JSONL and gateway accounting.
 - [x] Expose UI/API via guest-level Tailnet HTTPS (done; `scripts/tailnet-serve.sh`, `docs/DEPLOYMENT.md`; worker-vs-admin isolation completes in step 11), with tested Multica HTTP/WebSocket paths. Use one verified hostname/port layout rather than invented MagicDNS service subdomains. Databases unexposed; admin endpoints inaccessible to worker. Validate LAN/public exposure independently of UFW. [D1, D5]
 - [x] Implement manual public/private/unknown labels (done and live-tested; `runtime/sensitivity.mjs`, `docs/DEPLOYMENT.md`). Only explicit public tasks using approved public sources may invoke cloud inference. Private/unknown holds. Apply privacy and consequential-action checks independently; no early return bypasses approvals.
-- [ ] Inject only per-service credentials. Worker receives a scoped gateway token and task-scoped Multica access, not provider/admin/DB secrets. Restricted mount contains only current run’s workspace; no host home, canonical repo, other runs, or Docker socket.
-- [ ] Run public research → cited report using one dependable model, approved public-search/fetch tools, and workspace-scoped writes. Disable generic shell and private-file access for this role; restricted tools reject local/private-network fetch targets and redirects. Treat retrieved instructions as untrusted data, not policy. [D2–D3]
-- [ ] Prevent private context ingress in this public-only worker. Gate outbound model/tool requests against sensitivity and approved scope; labels only tighten without human reclassification. Scope memory, embeddings and external search under the same policy when later introduced.
-- [ ] Start with one concurrent run. Enforce approved cost/time/tool-step/retry limits and cancellation; persist terminal state. No recursive automatic escalation, no sending/purchasing/Git push/admin actions, and no automatic replay of external writes.
+- [x] Inject only per-service credentials (done; `docs/DEPLOYMENT.md` "Credential and network isolation"). Worker receives a scoped gateway token and task-scoped Multica access, not provider/admin/DB secrets. Restricted mount contains only current run’s workspace; no host home, canonical repo, other runs, or Docker socket.
+- [x] (mechanics proven with mock model; live Zen run + search backend need operator inputs, see `docs/DEPLOYMENT.md`; acceptance tracked in step 24) Run public research → cited report using one dependable model, approved public-search/fetch tools, and workspace-scoped writes. Disable generic shell and private-file access for this role; restricted tools reject local/private-network fetch targets and redirects. Treat retrieved instructions as untrusted data, not policy. [D2–D3]
+- [x] Prevent private context ingress in this public-only worker (done; `runtime/gate.mjs`, `docs/DEPLOYMENT.md`). Gate outbound model/tool requests against sensitivity and approved scope; labels only tighten without human reclassification. Scope memory, embeddings and external search under the same policy when later introduced.
+- [x] Start with one concurrent run (done and live-verified; `docs/DEPLOYMENT.md` "Execution limits"). Enforce approved cost/time/tool-step/retry limits and cancellation; persist terminal state. No recursive automatic escalation, no sending/purchasing/Git push/admin actions, and no automatic replay of external writes.
 - [ ] Record run ID, configuration/version, model, token/cost estimates versus reported usage, status, duration, artifact path and human acceptance. Do not log full prompts or sensitive tool payloads by default.
+
+**Step 15 acceptance / active work:** see `docs/PROGRESS.md`. Local code/config now add config SHA-256, configured component versions, policy version and trusted issue ID; cost source is explicit. Local Bifrost base/mock configs define exact Zen `minimax-m2.7` chat pricing, but guest deployment and runtime verification are still required because Bifrost previously reported zero cost and VK budget may be ineffective. Test nonzero Bifrost cost and deliberate budget rejection against mock; reconcile per-run gateway logs by VK/provider/model/time window (concurrency=1); record separate Pi estimate, Bifrost reported cost and provider actual/unknown; define acceptance as human-verified (issue `done` only if timeline confirms human actor, otherwise `not reviewed`). No real provider calls while mock/test config active.
 
 **Exit:** one Multica issue completes through policy → Pi → Bifrost → approved tools, returns a cited report, and stays within scope and approved spend. Gateway-only success is insufficient.
 

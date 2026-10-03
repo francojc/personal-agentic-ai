@@ -1,0 +1,6 @@
+# TEST-ONLY override: point Bifrost's zen provider at the scripted mock (tests/mock). Never use in production.
+# Usage: PAOS_EXTRA_COMPOSE=tests/compose.mock.yaml scripts/paos.sh up paos
+services:
+  bifrost:
+    volumes:
+      - ./tests/mock/bifrost.config.json:/app/data/config.json:ro

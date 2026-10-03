@@ -10,7 +10,7 @@ MULTICA_REPO="https://github.com/multica-ai/multica.git"
 MULTICA_TAG="v0.6.1"
 MULTICA_SHA="2ea01ae4ef55de4310b99af192d2dbd367832883"
 
-paos()    { docker compose -p paos -f "$ROOT/compose.paos.yaml" --env-file "$SECRETS/paos.env" "$@"; }
+paos()    { docker compose -p paos -f "$ROOT/compose.paos.yaml" ${PAOS_EXTRA_COMPOSE:+-f "$ROOT/$PAOS_EXTRA_COMPOSE"} --env-file "$SECRETS/paos.env" "$@"; }  # PAOS_EXTRA_COMPOSE: tests only
 multica() { docker compose -p multica --project-directory "$VENDOR" -f "$VENDOR/docker-compose.selfhost.yml" --env-file "$SECRETS/multica.env" "$@"; }
 rand()    { openssl rand -hex 32; }
 need()    { [[ -f "$SECRETS/$1" ]] || { echo "missing $SECRETS/$1 – run: $0 init-secrets" >&2; exit 1; }; }

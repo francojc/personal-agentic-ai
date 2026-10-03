@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 install -d -m 0755 /opt/paos/runtime/extensions /etc/paos
 install -m 0755 "$ROOT"/runtime/paos-pi.mjs /opt/paos/runtime/paos-pi.mjs
-install -m 0644 "$ROOT"/runtime/{policy,net,monitor,sensitivity,lock}.mjs /opt/paos/runtime/
+install -m 0644 "$ROOT"/runtime/{policy,net,monitor,sensitivity,lock,gate,reconcile}.mjs /opt/paos/runtime/
 install -m 0644 "$ROOT"/runtime/extensions/paos-research.mjs /opt/paos/runtime/extensions/
 [[ -f /etc/paos/worker.json ]] || install -m 0644 "$ROOT/config/paos/worker.json.example" /etc/paos/worker.json  # never overwrite operator edits
 install -d -o paos-worker -g paos-worker -m 0700 /var/lib/paos /var/lib/paos/home

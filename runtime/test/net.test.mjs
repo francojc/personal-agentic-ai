@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { makeSafeLookup, fetchPublic, htmlToText, parseDuckDuckGo } from "../net.mjs";
+import { makeSafeLookup, fetchPublic, htmlToText, parseDuckDuckGo, parseBrave, searchWeb } from "../net.mjs";
 
 test("safe lookup rejects private answers for public-looking names", async () => {
   const lookup = makeSafeLookup((h, o, cb) => cb(null, [{ address: "10.0.4.1", family: 4 }]));
@@ -29,4 +29,12 @@ test("html to text and ddg parsing", () => {
   const html = `<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fa&rut=1">Ex &amp; A</a><a class="result__snippet">snip</a>
   <a class="result__a" href="//duckduckgo.com/l/?uddg=http%3A%2F%2F127.0.0.1%2F">Evil</a>`;
   const r = parseDuckDuckGo(html); assert.equal(r.length, 1); assert.equal(r[0].url, "https://example.com/a");
+});
+
+test("brave mapping filters unsafe URLs; searchWeb fails loudly without backend", async () => {
+  const r = parseBrave({ web: { results: [{ title: "A <b>x</b>", url: "https://example.com/a", description: "d" }, { title: "bad", url: "http://127.0.0.1/", description: "" }] } });
+  assert.equal(r.length, 1); assert.equal(r[0].title, "A x");
+  assert.deepEqual(parseBrave({}), []);
+  await assert.rejects(searchWeb("q", { provider: "none" }), /no search backend/);
+  await assert.rejects(searchWeb("q", { provider: "brave", apiKey: "" }), /no search backend/);
 });

@@ -20,7 +20,7 @@ export function makeSafeLookup(resolve = dns.lookup) {
 
 const TEXT_TYPES = /^(text\/|application\/(json|xml|xhtml\+xml)|application\/.*\+(json|xml))/i;
 
-export async function fetchPublic(rawUrl, { maxBytes = 1_000_000, timeoutMs = 15_000, maxRedirects = 4, lookup = makeSafeLookup(), signal } = {}) {
+export async function fetchPublic(rawUrl, { maxBytes = 1_000_000, timeoutMs = 15_000, maxRedirects = 4, lookup = makeSafeLookup(), signal, headers = {} } = {}) {
   let url = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const chk = checkUrlStatic(url);
@@ -28,7 +28,7 @@ export async function fetchPublic(rawUrl, { maxBytes = 1_000_000, timeoutMs = 15
     const u = chk.url;
     const res = await new Promise((resolve, reject) => {
       const mod = u.protocol === "https:" ? https : http;
-      const req = mod.request(u, { method: "GET", lookup, timeout: timeoutMs, signal, headers: { "user-agent": "paos-research/0.1", accept: "text/html,text/plain,application/json;q=0.9" } }, resolve);
+      const req = mod.request(u, { method: "GET", lookup, timeout: timeoutMs, signal, headers: { "user-agent": "paos-research/0.1", accept: "text/html,text/plain,application/json;q=0.9", ...headers } }, resolve);
       req.on("timeout", () => req.destroy(new Error("timeout")));
       req.on("error", reject); req.end();
     });
@@ -64,4 +64,21 @@ export function parseDuckDuckGo(html, limit = 8) {
     out.push({ title: htmlToText(m[2]), url: href, snippet: htmlToText(m[3] || "") });
   }
   return out;
+}
+
+/** Brave Search API result mapping. Returns [] on unexpected shape (caller treats empty as failure). */
+export function parseBrave(json, limit = 8) {
+  const rows = json?.web?.results; if (!Array.isArray(rows)) return [];
+  return rows.slice(0, limit).map((r) => ({ title: htmlToText(String(r.title || "")), url: String(r.url || ""), snippet: htmlToText(String(r.description || "")) })).filter((r) => checkUrlStatic(r.url).ok);
+}
+
+/** Search via the configured backend. Never returns a silent empty list: failure is an error the model can see. */
+export async function searchWeb(query, { provider = "none", apiKey = "", signal } = {}) {
+  if (provider === "brave" && apiKey) {
+    const r = await fetchPublic("https://api.search.brave.com/res/v1/web/search?count=8&q=" + encodeURIComponent(query), { signal, headers: { accept: "application/json", "x-subscription-token": apiKey } });
+    if (r.status !== 200) throw new Error(`search backend returned HTTP ${r.status}`);
+    const hits = parseBrave(JSON.parse(r.body)); if (!hits.length) throw new Error("search returned no results");
+    return hits;
+  }
+  throw new Error("no search backend configured; use web_fetch with known public URLs instead");
 }

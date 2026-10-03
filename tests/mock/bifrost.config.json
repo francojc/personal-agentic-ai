@@ -13,16 +13,21 @@
         {
           "name": "zen-primary",
           "value": "env.ZEN_API_KEY",
-          "models": ["research"],
+          "models": [
+            "research"
+          ],
           "weight": 1.0,
-          "aliases": { "research": "minimax-m2.7" }
+          "aliases": {
+            "research": "minimax-m2.7"
+          }
         }
       ],
       "network_config": {
-        "base_url": "https://opencode.ai/zen",
+        "base_url": "http://paos-mock-zen:9099",
         "default_request_timeout_in_seconds": 120,
         "max_retries": 0,
-        "stream_idle_timeout_in_seconds": 60
+        "stream_idle_timeout_in_seconds": 60,
+        "allow_private_network": true
       },
       "custom_provider_config": {
         "base_provider_type": "openai",
@@ -30,7 +35,10 @@
           "chat_completion": true,
           "chat_completion_stream": true
         },
-        "request_path_overrides": { "chat_completion": "/v1/chat/completions", "chat_completion_stream": "/v1/chat/completions" }
+        "request_path_overrides": {
+          "chat_completion": "/v1/chat/completions",
+          "chat_completion_stream": "/v1/chat/completions"
+        }
       }
     }
   },
@@ -49,12 +57,26 @@
         "is_active": true,
         "allow_all_providers": false,
         "provider_configs": [
-          { "provider": "zen", "allowed_models": ["research"], "key_ids": ["*"], "weight": 1 }
+          {
+            "provider": "zen",
+            "allowed_models": [
+              "research"
+            ],
+            "key_ids": [
+              "*"
+            ],
+            "weight": 1
+          }
         ]
       }
     ],
     "budgets": [
-      { "id": "budget-paos-worker-monthly", "max_limit": 20.0, "reset_duration": "1M", "virtual_key_id": "vk-paos-worker" }
+      {
+        "id": "budget-paos-worker-monthly",
+        "max_limit": 20.0,
+        "reset_duration": "1M",
+        "virtual_key_id": "vk-paos-worker"
+      }
     ],
     "pricing_overrides": [
       {

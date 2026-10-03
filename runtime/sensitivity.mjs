@@ -1,7 +1,7 @@
 // Resolves the TRUSTED sensitivity of the current task (runs in the launcher, outside the sandbox).
 // Source of truth: human-applied Multica issue labels, read with the daemon's task-scoped token.
 // The issue id comes from the daemon-written marker, never from the prompt. Anything unresolved,
-// ambiguous or erroring is "unknown" => policy HOLD. Labels only tighten (see policy.classifyLabels).
+// ambiguous or erroring is non-public => policy HOLD ("error" is tolerated briefly mid-run by the gate). Labels only tighten (see policy.classifyLabels).
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -37,8 +37,9 @@ export async function resolveSensitivity({ env, cfg, cwd = process.cwd(), run = 
     MULTICA_TOKEN: env.MULTICA_TOKEN, MULTICA_SERVER_URL: env.MULTICA_SERVER_URL, MULTICA_WORKSPACE_ID: env.MULTICA_WORKSPACE_ID,
     MULTICA_AGENT_ID: env.MULTICA_AGENT_ID, MULTICA_TASK_ID: env.MULTICA_TASK_ID };
   let out;
-  try { out = await run(bin, ["issue", "label", "list", mk.issueId, "--output", "json"], childEnv); } catch { return "unknown"; }
-  let parsed; try { parsed = JSON.parse(out); } catch { return "unknown"; }
+  // "error" = could not verify (transient); "unknown" = verified but no explicit public label. Both are non-public.
+  try { out = await run(bin, ["issue", "label", "list", mk.issueId, "--output", "json"], childEnv); } catch { return "error"; }
+  let parsed; try { parsed = JSON.parse(out); } catch { return "error"; }
   const names = extractLabelNames(parsed);
-  return names ? classifyLabels(names) : "unknown";
+  return names ? classifyLabels(names) : "error";
 }

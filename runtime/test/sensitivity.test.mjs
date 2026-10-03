@@ -28,9 +28,10 @@ test("public only when label present and nothing tighter", async () => {
   assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: run(["public", "private"]) }), "private");
   assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: run([]) }), "unknown");
 });
-test("errors and junk resolve to unknown (hold)", async () => {
-  assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: async () => { throw new Error("401"); } }), "unknown");
-  assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: async () => "not json" }), "unknown");
+test("lookup failures are 'error'; missing marker is 'unknown' (both non-public)", async () => {
+  assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: async () => { throw new Error("401"); } }), "error");
+  assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: async () => "not json" }), "error");
+  assert.equal(await resolveSensitivity({ env, cwd: workdir(good), run: async () => '{"x":1}' }), "error");
   assert.equal(await resolveSensitivity({ env, cwd: workdir(null), run: async () => "[]" }), "unknown");
 });
 test("child env never carries other secrets", async () => {

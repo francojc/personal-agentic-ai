@@ -9,13 +9,15 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { parseMulticaArgs, evaluateLaunch, monthlyAllowance, monthKey } from "./policy.mjs";
 import { StreamMonitor } from "./monitor.mjs";
-import { resolveSensitivity } from "./sensitivity.mjs";
+import { resolveSensitivity, readMarker } from "./sensitivity.mjs";
 import { acquireLock } from "./lock.mjs";
+import { SensitivityGate, writeGateState } from "./gate.mjs";
+import { reconcile } from "./reconcile.mjs";
 
 const CONFIG_PATH = process.env.PAOS_WORKER_CONFIG || "/etc/paos/worker.json";
 const fail = (code, msg) => { process.stderr.write(`PAOS: ${msg}\n`); process.exit(code); };
 
-export function buildBwrapArgs({ cfg, cwd, sessionFile, agentDir, gatewayKey, tz }) {
+export function buildBwrapArgs({ cfg, cwd, sessionFile, agentDir, gateDir, gatewayKey, tz, searchKey = "" }) {
   const p = cfg.paths;
   const ro = (s, d = s) => (fs.existsSync(s) ? ["--ro-bind", s, d] : []);
   const piCli = path.join(p.pi, "lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js");
@@ -26,9 +28,10 @@ export function buildBwrapArgs({ cfg, cwd, sessionFile, agentDir, gatewayKey, tz
     ...ro("/etc/resolv.conf"), ...ro("/etc/hosts"), ...ro("/etc/nsswitch.conf"), ...ro("/etc/ssl"), ...ro("/etc/ca-certificates"),
     "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
     "--bind", cwd, "/work", "--chdir", "/work",
-    "--ro-bind", agentDir, "/agent", "--bind", sessionFile, "/session.jsonl",
+    "--bind", agentDir, "/agent", "--ro-bind", gateDir, "/gate", "--bind", sessionFile, "/session.jsonl",
     "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/tmp", "--setenv", "TZ", tz || "UTC",
-    "--setenv", "PI_CODING_AGENT_DIR", "/agent", "--setenv", "PAOS_GATEWAY_KEY", gatewayKey, "--setenv", "NODE_OPTIONS", "--max-old-space-size=768",
+    "--setenv", "PI_CODING_AGENT_DIR", "/agent", "--setenv", "PAOS_GATEWAY_KEY", gatewayKey, "--setenv", "NODE_OPTIONS", "--max-old-space-size=768", "--setenv", "PAOS_MAX_TOOL_CALLS", String(cfg.limits.maxToolCalls),
+    ...(searchKey ? ["--setenv", "PAOS_SEARCH_PROVIDER", cfg.search.provider, "--setenv", "PAOS_SEARCH_KEY", searchKey] : []),
     "--",
     path.join(p.node, "bin/node"), piCli,
     "-p", "--mode", "json", "--session", "/session.jsonl",
@@ -39,9 +42,27 @@ export function buildBwrapArgs({ cfg, cwd, sessionFile, agentDir, gatewayKey, tz
   ];
 }
 
+/** Pi settings pinned per run: no hidden model traffic (cache warming, compaction, telemetry); retries bounded. */
+export function piSettings(cfg) {
+  return { defaultProjectTrust: "never", defaultProvider: cfg.model.provider, defaultModel: cfg.model.id,
+    retry: { enabled: true, maxRetries: cfg.limits.maxTransientRetries ?? 2, provider: { maxRetries: 0 } },
+    compaction: { enabled: false }, cacheWarming: "off", enableInstallTelemetry: false, quietStartup: true };
+}
+
 export function modelsJson(cfg) {
   return { providers: { [cfg.model.provider]: { baseUrl: cfg.gatewayBaseUrl, api: "openai-completions", apiKey: "$PAOS_GATEWAY_KEY",
     models: [{ id: cfg.model.id, name: "PAOS research", reasoning: false, input: ["text"], contextWindow: cfg.model.contextWindow, maxTokens: cfg.model.maxTokens, cost: cfg.model.cost }] } } };
+}
+
+export function runProvenance({ configPath, cfg, cwd, env }) {
+  const configSha256 = crypto.createHash("sha256").update(fs.readFileSync(configPath)).digest("hex");
+  const marker = readMarker(cwd, env);
+  return {
+    config_sha256: configSha256,
+    policy_version: cfg.policyVersion,
+    component_versions: { paos: "0.1.0-dev", node: process.version, ...(cfg.componentVersions || {}) },
+    issue_id: marker.ok ? marker.issueId : null,
+  };
 }
 
 async function main() {
@@ -51,6 +72,7 @@ async function main() {
   try { cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")); } catch (e) { fail(2, `cannot read config: ${e.message}`); }
 
   const runId = crypto.randomUUID(); const t0 = Date.now(); const month = monthKey();
+  const provenance = runProvenance({ configPath: CONFIG_PATH, cfg, cwd: process.cwd(), env: process.env });
   const logPath = path.join(cfg.paths.state, "runs", `${month}.jsonl`); fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o700 });
   let seq = 0;
   const log = (type, payload = {}) => fs.appendFileSync(logPath, JSON.stringify({ schema_version: 1, run_id: runId, seq: ++seq, time: new Date().toISOString(), type, ...payload }) + "\n");
@@ -60,7 +82,7 @@ async function main() {
 
   const sensitivity = await resolveSensitivity({ env: process.env, cfg }).catch(() => "unknown");
   const verdict = evaluateLaunch({ env: process.env, config: cfg, sensitivity });
-  log("policy_decision", { allow: verdict.allow, sensitivity, task: process.env.MULTICA_TASK_ID, agent: process.env.MULTICA_AGENT_ID, policy_version: cfg.policyVersion });
+  log("policy_decision", { ...provenance, allow: verdict.allow, sensitivity, task: process.env.MULTICA_TASK_ID, agent: process.env.MULTICA_AGENT_ID });
   if (!verdict.allow) hold(verdict.reason);
 
   const ledgerLines = fs.existsSync(ledgerPath) ? fs.readFileSync(ledgerPath, "utf8").split("\n").filter(Boolean) : [];
@@ -69,39 +91,48 @@ async function main() {
 
   const lock = acquireLock(path.join(cfg.paths.state, "run.lock"));
   if (!lock.ok) hold(`another PAOS run is active or lock unavailable (${lock.reason})`);
-  let agentDir = null;
-  process.on("exit", () => { lock.release(); if (agentDir) fs.rmSync(agentDir, { recursive: true, force: true }); }); // also covers internal errors
+  for (const r of reconcile({ stateDir: cfg.paths.state, margin: cfg.limits.worstCaseRequestUsd })) log("reconciled", { interrupted_run: r.runId, reserved_usd: r.reserved }); // lock held => no live run
+  let agentDir = null, gateDir = null;
+  process.on("exit", () => { lock.release(); for (const d of [agentDir, gateDir]) if (d) fs.rmSync(d, { recursive: true, force: true }); }); // also covers internal errors
 
   agentDir = fs.mkdtempSync(path.join(cfg.paths.state, "agent-"));
+  gateDir = fs.mkdtempSync(path.join(cfg.paths.state, "gate-"));
+  writeGateState(gateDir, "public"); // launch policy already passed; must exist before the sandbox starts
   fs.writeFileSync(path.join(agentDir, "models.json"), JSON.stringify(modelsJson(cfg)));
-  fs.writeFileSync(path.join(agentDir, "settings.json"), JSON.stringify({ defaultProjectTrust: "never", defaultProvider: cfg.model.provider, defaultModel: cfg.model.id }));
+  fs.writeFileSync(path.join(agentDir, "settings.json"), JSON.stringify(piSettings(cfg)));
   const gatewayKey = fs.readFileSync(cfg.paths.gatewayKeyFile, "utf8").trim();
-  const bw = buildBwrapArgs({ cfg, cwd: process.cwd(), sessionFile: args.session, agentDir, gatewayKey, tz: process.env.TZ });
+  const searchKey = cfg.search?.keyFile && fs.existsSync(cfg.search.keyFile) ? fs.readFileSync(cfg.search.keyFile, "utf8").trim() : "";
+  const bw = buildBwrapArgs({ cfg, cwd: process.cwd(), sessionFile: args.session, agentDir, gateDir, gatewayKey, tz: process.env.TZ, searchKey });
 
   const mon = new StreamMonitor({ maxToolCalls: cfg.limits.maxToolCalls, perRunUsd: cfg.limits.perRunUsd, worstCaseRequestUsd: cfg.limits.worstCaseRequestUsd });
-  log("started", { model: `${cfg.model.provider}/${cfg.model.id}`, limits: cfg.limits });
+  log("started", { ...provenance, model: `${cfg.model.provider}/${cfg.model.id}`, limits: cfg.limits });
   const child = spawn(cfg.paths.bwrap || "/usr/bin/bwrap", bw, { stdio: ["pipe", "pipe", "inherit"] });
   process.stdin.pipe(child.stdin); child.stdin.on("error", () => {});
 
-  let killedFor = null;
+  let killedFor = null, heldFor = null;
   const kill = (reason) => { if (killedFor) return; killedFor = reason; log("limit", { reason }); child.kill("SIGTERM"); setTimeout(() => child.kill("SIGKILL"), 10_000).unref(); };
+  // Re-verify sensitivity for the whole run (labels only tighten). Violation => stop before more data leaves.
+  const gate = new SensitivityGate({ dir: gateDir, intervalMs: cfg.limits.gatePollMs ?? 3000,
+    resolve: () => resolveSensitivity({ env: process.env, cfg }), onViolation: (r) => { heldFor = r; log("held", { reason: r, midrun: true }); kill(r); } });
+  gate.start();
   const deadline = setTimeout(() => kill(`deadline ${cfg.limits.deadlineSec}s exceeded`), cfg.limits.deadlineSec * 1000);
   for (const s of ["SIGTERM", "SIGINT"]) process.on(s, () => kill(`cancelled by ${s}`));
 
   let buf = "";
   child.stdout.on("data", (d) => {
     process.stdout.write(d); buf += d.toString("utf8");
-    let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const r = mon.observe(line); if (r.kill) kill(r.reason); }
+    let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const r = mon.observe(line); if (r.kill) kill(r.reason); if (line.includes('"turn_end"')) { log("usage", { ...provenance, cost_usd: mon.costUsd, cost_basis: "pi_local_estimate", turns: mon.turns, tool_calls: mon.toolCalls }); gate.check(); } }
   });
   const code = await new Promise((res) => child.on("close", (c, sig) => res(c ?? (sig ? 128 : 1))));
-  clearTimeout(deadline);
+  clearTimeout(deadline); gate.stop();
 
   const out = killedFor ? { status: "failed", reason: killedFor } : (code === 0 ? mon.outcome() : { status: "failed", reason: `child exit ${code}` });
   const artifact = path.join(process.cwd(), "report.md");
   const hasArtifact = fs.existsSync(artifact);
   const reserved = Math.max(mon.costUsd, 0); // conservative: unknown cost already fails closed in monitor
-  log(out.status === "succeeded" ? "completed" : "failed", { reason: out.reason, tool_calls: mon.toolCalls, turns: mon.turns, usage: mon.usage, cost_usd: mon.costUsd, duration_ms: Date.now() - t0, artifact: hasArtifact ? "report.md" : null, artifact_sha256: hasArtifact ? crypto.createHash("sha256").update(fs.readFileSync(artifact)).digest("hex") : null });
-  ledger({ status: out.status, cost_usd: reserved, cost_usd_reserved: mon.budget.unknown ? cfg.limits.perRunUsd : reserved });
+  log(out.status === "succeeded" ? "completed" : "failed", { ...provenance, reason: out.reason, tool_calls: mon.toolCalls, turns: mon.turns, usage: mon.usage, cost_usd: mon.costUsd, cost_basis: "pi_local_estimate", bifrost_reported_cost_usd: null, provider_actual_cost_usd: null, duration_ms: Date.now() - t0, artifact: hasArtifact ? "report.md" : null, artifact_sha256: hasArtifact ? crypto.createHash("sha256").update(fs.readFileSync(artifact)).digest("hex") : null });
+  ledger({ status: heldFor ? "held" : out.status, cost_usd: reserved, cost_usd_reserved: mon.budget.unknown ? cfg.limits.perRunUsd : reserved });
+  if (heldFor) fail(3, `HOLD: ${heldFor}`);
   if (killedFor) fail(4, `stopped: ${killedFor}`);
   if (out.status !== "succeeded") fail(5, `run failed: ${out.reason}`);
   process.exit(0);
