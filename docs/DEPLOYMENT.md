@@ -71,6 +71,45 @@ Two projects, one wrapper: `scripts/paos.sh`. Never run bare `docker compose` or
 
 Secrets live in `/srv/paos/secrets/{paos,multica}.env` (0600, outside Git); `init-secrets` never overwrites. Commands: `vendor-fetch`, `init-secrets`, `config`, `up`, `stop`, `down` (never removes volumes), `status`, `logs`. Both projects validated and all pinned images publish `amd64` manifests (2026-10-03). Nothing started yet. The Multica daemon runs on the host as `paos-worker` (not in Compose), per upstream design.
 
+## Services and worker runtime (step 8)
+
+Running (2026-10-03): Multica `v0.6.1` (`readyz` db+migrations ok, frontend 200) and Bifrost `v2.2.5` (healthy), all bound to loopback. Not yet configured: Bifrost provider/VK, Multica workspace/agent (steps 9–12).
+
+Worker runtime (root-owned, `/opt/paos`): Node `v22.23.3`, Pi `1.0.1` (`--ignore-scripts`), Multica CLI `0.6.1` (checksum-verified), `bubblewrap 0.12.0`; installed by `scripts/install-worker-runtime.sh`. Launcher and policy code in `runtime/` installed by `scripts/install-worker-config.sh`; config `/etc/paos/worker.json` (template `config/paos/worker.json.example`); state/ledger `/var/lib/paos`.
+
+Design as built:
+- Multica daemon runs on the host as `paos-worker` (`config/paos/multica-daemon.service`, concurrency 1) with `MULTICA_PI_PATH` pointing at `runtime/paos-pi.mjs`, so Multica's native Pi backend executes our launcher, never raw `pi`.
+- Launcher: validates args (rejects everything but Multica's invocation; model is forced), requires an allow-listed agent and `public` sensitivity (unresolved = HOLD, exit 3), checks the monthly ledger, takes a single-run lock, then runs Pi inside `bwrap` (cleared env, only `/work`, session file, read-only runtime/config, no `/home`, `/srv`, Docker socket or Multica token). Tools: `web_search`, `web_fetch`, `write_report` only.
+- Limits enforced outside the sandbox from Pi's JSONL stream: 900 s deadline, 30 tool calls, per-run cost with a worst-case-request margin (unknown cost fails closed), cancellation via signals; success requires `agent_settled` and a non-error terminal turn.
+- Metadata-only JSONL under `/var/lib/paos/runs/` and a spend ledger; no prompts or fetched pages logged.
+- Unit tests: `node --test runtime/test/*.test.mjs` (18 passing locally and on the guest).
+
+Known gaps carried to later steps: sensitivity resolver (`runtime/sensitivity.mjs` is a stub returning `unknown`; step 10), gateway key/VK and filtered gateway port (steps 9/11), per-uid network egress rules (step 11), live end-to-end run (step 12).
+
+## Access layout (step 9)
+
+One origin: `https://paos-control.<tailnet>.ts.net` (guest-level `tailscale serve`, tailnet-only, no Funnel; `scripts/tailnet-serve.sh`). Routes: `/health`, `/ws`, `/api/daemon/ws` -> Multica backend `127.0.0.1:8080`; everything else -> frontend `127.0.0.1:3000`. Multica `.env` sets `FRONTEND_ORIGIN`, `MULTICA_APP_URL`, `MULTICA_PUBLIC_URL` to that origin and `MULTICA_TRUSTED_PROXIES=127.0.0.1/32`; `/api/config` reports the same daemon URL.
+
+Verified 2026-10-03 from the operator workstation: `/health` 200 (commit matches pin), `/` and `/api/config` 200 with a valid certificate, `/ws` and `/api/daemon/ws` reach the backend (400/401, not the frontend). From the Proxmox LAN only SSH (22) is open; 3000/8080/8081/5432 are closed. Postgres is unpublished. Bifrost admin remains loopback-only.
+
+Sign-in: `ALLOW_SIGNUP=true` is limited by `ALLOWED_EMAILS` (set to the operator's address; no email service, so the verification code is read from backend logs). Set `ALLOW_SIGNUP=false` after the first account exists. The first-time Bifrost setup token and admin credentials are an operator step (never given to the worker; step 11 blocks the worker uid from loopback admin ports).
+
+## Sensitivity labels and live policy test (step 10)
+
+Sensitivity is human-applied Multica issue labels, resolved by the launcher (outside the sandbox) with the daemon's task-scoped token. The issue id comes from the daemon-written `.multica/daemon_task_context.json` (`managed_by`, `agent_id`, `issue_id`), never from the prompt; chat/autopilot runs have no issue and therefore hold. Labels: `public` (explicit allow), `private` (home-local; hold). Any `private`/`sensitive` label wins over `public`; no label, unresolved, or any resolver error = `unknown` = hold. Privacy and agent/workspace allow-listing are independent checks; consequential actions are not exposed to this worker at all in v0.1.
+
+Live results on the pinned stack (2026-10-03), workspace `PAOS`, agent `Research Scout` (allow-listed in `/etc/paos/worker.json`):
+
+| Issue labels | Decision |
+|---|---|
+| none | HOLD (`unknown`), exit 3 |
+| `public` | allowed (run proceeded to the gateway-key step; nothing sent outbound because no key exists yet) |
+| `public` + `private` | HOLD (`private`), exit 3 |
+
+Operational notes: Multica shows a held run as a failed task ("pi exited with error: exit status 3"); the reason is in `/var/lib/paos/runs/<month>.jsonl` (`held`/`policy_decision`). A bug found and fixed during this test: a run lock left behind after an internal error; the launcher now releases the lock on any exit and reclaims stale locks (`runtime/lock.mjs`, tested). Signup is now closed (`ALLOW_SIGNUP=false`); sign in with the allow-listed email using the code from `./scripts/paos.sh logs multica backend`.
+
+Known limitation: the daemon's Multica credential (a personal access token for the operator account, in the `paos-worker` home) is readable by the launcher user. The Pi process is sandboxed without it, but a sandbox escape would hold operator-level Multica access. Mitigation planned: dedicated low-privilege Multica member/PAT before real-data go-live (tracked in step 26 review).
+
 ## Authority and references
 
 Implementation sequence: `plans/paos-tiered-implementation.md`. Original whitepaper/runbook remain historical design inputs until reconciled; their GPU privacy route and larger default allocations do not override these decisions.

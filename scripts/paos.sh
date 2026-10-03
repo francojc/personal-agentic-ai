@@ -18,6 +18,7 @@ need()    { [[ -f "$SECRETS/$1" ]] || { echo "missing $SECRETS/$1 – run: $0 in
 usage() { cat <<U
 usage: $0 <command> [args]
   vendor-fetch   clone/verify pinned Multica ($MULTICA_TAG @ ${MULTICA_SHA:0:7})
+  sync-worker-key  install the worker's gateway virtual key to /etc/paos/gateway.key
   init-secrets   create $SECRETS/{paos,multica}.env (0600) if absent; never overwrites
   config         validate both projects (secrets masked; output not stored)
   up | stop | down [paos|multica|all]   default all; 'down' never removes volumes
@@ -56,13 +57,30 @@ MULTICA_APP_URL=http://localhost:3000
 E
     echo "created $SECRETS/multica.env (set FRONTEND_ORIGIN/MULTICA_APP_URL when the Tailnet URL is chosen, step 9)"
   fi
+  # Idempotently add gateway credentials introduced after first init (never overwrites existing values).
+  ensure() { grep -q "^$1=" "$SECRETS/paos.env" || echo "$1=$2" >> "$SECRETS/paos.env"; }
+  ensure BIFROST_ADMIN_USERNAME paos-admin
+  ensure BIFROST_ADMIN_PASSWORD "$(rand)"
+  ensure PAOS_WORKER_VK "sk-bf-$(rand)"
+  ensure GATEWAY_FILTER_PORT 8082
   chmod 600 "$SECRETS"/*.env
+}
+
+# Install the worker's gateway virtual key where the launcher reads it (root:paos-worker 0640).
+sync_worker_key() {
+  need paos.env
+  local vk; vk="$(grep '^PAOS_WORKER_VK=' "$SECRETS/paos.env" | cut -d= -f2-)"
+  [[ -n "$vk" ]] || { echo "PAOS_WORKER_VK empty" >&2; exit 1; }
+  sudo install -d -m 0755 /etc/paos
+  printf '%s\n' "$vk" | sudo install -m 0640 -o root -g paos-worker /dev/stdin /etc/paos/gateway.key
+  echo "installed /etc/paos/gateway.key"
 }
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
   vendor-fetch) vendor_fetch ;;
   init-secrets) init_secrets ;;
+  sync-worker-key) sync_worker_key ;;
   config) need paos.env; need multica.env; [[ -d "$VENDOR" ]] || { echo "run vendor-fetch" >&2; exit 1; }
           paos config --quiet && echo "paos: ok"; multica config --quiet && echo "multica: ok" ;;
   up)     need paos.env; need multica.env; t="${1:-all}"

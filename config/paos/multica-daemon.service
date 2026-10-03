@@ -1,0 +1,25 @@
+[Unit]
+Description=Multica daemon (PAOS worker host process)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=paos-worker
+Group=paos-worker
+WorkingDirectory=/srv/paos/workspaces
+Environment=HOME=/var/lib/paos/home
+Environment=PATH=/opt/paos/node/bin:/usr/bin:/bin
+# Native Pi backend runs OUR launcher instead of raw pi. See docs/COMPATIBILITY.md.
+Environment=MULTICA_PI_PATH=/opt/paos/runtime/paos-pi.mjs
+Environment=MULTICA_DAEMON_MAX_CONCURRENT_TASKS=1
+ExecStart=/opt/paos/bin/multica daemon start --foreground --workspaces-root /srv/paos/workspaces
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/paos/workspaces /var/lib/paos
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
