@@ -60,6 +60,17 @@ Admin SSH key is the operator's default public key (`~/.ssh/id_ed25519.pub`); Pr
 
 Open items: (1) disable Tailnet key expiry for `paos-control` and review ACL tags in the Tailscale admin console (operator action; no policy changed); (2) systemd-resolved listens on LLMNR 5355 – blocked by UFW, optionally disable; (3) the Docker-published-port/UFW bypass must be handled by loopback-only binds (verify in step 9/28); (4) no PAOS application services deployed yet.
 
+## Compose topology (step 7)
+
+Two projects, one wrapper: `scripts/paos.sh`. Never run bare `docker compose` or merge files.
+
+| Project | Source | Notes |
+|---|---|---|
+| `paos` | `compose.paos.yaml` | Bifrost `v2.2.5` only for now; loopback-only publish; caps dropped, memory/PID/CPU limits |
+| `multica` | `vendor/multica` at `v0.6.1` (`2ea01ae`), verified by `vendor-fetch` | Vendor compose unmodified; images tagged `v0.6.1`; its Postgres uses floating `pgvector/pgvector:pg17` – pin by digest in step 21 |
+
+Secrets live in `/srv/paos/secrets/{paos,multica}.env` (0600, outside Git); `init-secrets` never overwrites. Commands: `vendor-fetch`, `init-secrets`, `config`, `up`, `stop`, `down` (never removes volumes), `status`, `logs`. Both projects validated and all pinned images publish `amd64` manifests (2026-10-03). Nothing started yet. The Multica daemon runs on the host as `paos-worker` (not in Compose), per upstream design.
+
 ## Authority and references
 
 Implementation sequence: `plans/paos-tiered-implementation.md`. Original whitepaper/runbook remain historical design inputs until reconciled; their GPU privacy route and larger default allocations do not override these decisions.
