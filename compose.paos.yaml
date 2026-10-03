@@ -1,0 +1,32 @@
+# PAOS services (Compose project "paos"). Multica runs as a SEPARATE project ("multica")
+# from vendor/multica. Always drive both through scripts/paos.sh – never merge or mix invocations.
+# See docs/DEPLOYMENT.md, docs/GATEWAY-CONTRACT.md.
+name: paos
+
+services:
+  bifrost:
+    # Pin by tag now; replace with image digest before go-live (step 21).
+    image: maximhq/bifrost:${BIFROST_TAG:-v2.2.5}
+    restart: unless-stopped
+    environment:
+      BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY:?run scripts/paos.sh init-secrets}
+      ZEN_API_KEY: ${ZEN_API_KEY:-}
+    volumes:
+      - bifrost-data:/app/data
+    ports:
+      # Loopback only: Docker-published ports bypass UFW. Admin/inference listener; the worker is
+      # kept off it by host network policy (step 11) and reaches only the filtered gateway port.
+      - "127.0.0.1:${BIFROST_ADMIN_PORT:-8081}:8080"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: "1.0"
+    networks: [paos_net]
+
+networks:
+  paos_net:
+    name: paos_net
+
+volumes:
+  bifrost-data:

@@ -1,4 +1,8 @@
 .env
+
+# Local deployment inventory; never commit host identifiers or operator secrets.
+/discovery.local.md
+
 *.bak
 .DS_Store
 Thumbs.db
@@ -12,3 +16,6 @@ config/tsdproxy/tsdproxy.yaml
 
 # Slide build output.
 slides/dist/
+
+# Pinned Multica checkout (fetched by scripts/paos.sh vendor-fetch).
+vendor/
