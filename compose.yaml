@@ -1,80 +1,30 @@
-name: personal-agentic-ai
+# Bifrost learning stack. Multica uses separate upstream Compose project.
+name: paos
 
 services:
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:${OPENWEBUI_TAG:-main}
-    container_name: open-webui
-    restart: unless-stopped
-    depends_on:
-      bifrost:
-        condition: service_started
-    environment:
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
-      OPENAI_API_BASE_URL: http://bifrost:8080/v1
-      OPENAI_API_KEY: ${BIFROST_OPENWEBUI_KEY:-not-required}
-    volumes:
-      - open-webui-data:/app/backend/data
-    ports:
-      - "127.0.0.1:${OPENWEBUI_LOCAL_PORT:-3000}:8080"
-    labels:
-      tsdproxy.enable: "true"
-      tsdproxy.name: "${OPENWEBUI_TS_NAME:-webui}"
-    networks: [ai]
-
   bifrost:
-    image: maximhq/bifrost:${BIFROST_TAG:-latest}
-    container_name: bifrost
+    image: maximhq/bifrost:${BIFROST_TAG:?set BIFROST_TAG in .env}
     restart: unless-stopped
     environment:
-      BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY}
+      BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY:?set stable encryption key}
+      BIFROST_ADMIN_USERNAME: ${BIFROST_ADMIN_USERNAME:?set admin username}
+      BIFROST_ADMIN_PASSWORD: ${BIFROST_ADMIN_PASSWORD:?set admin password}
     volumes:
       - bifrost-data:/app/data
+      - ./config/bifrost/config.json:/app/data/config.json:ro
     ports:
       - "127.0.0.1:${BIFROST_LOCAL_PORT:-8081}:8080"
-    labels:
-      tsdproxy.enable: "true"
-      tsdproxy.name: "${BIFROST_TS_NAME:-gateway}"
-    networks: [ai]
-
-  # Advanced local decision model. Tested with Ollaya 0.7.2, CPU-only.
-  # Uncomment service and ollaya-data volume below to enable. It shares `ai`
-  # network, so Bifrost can reach it at http://ollaya:11435. Ollaya uses
-  # TypeSafe System One API, not OpenAI chat-completions; direct Bifrost
-  # integration needs an adapter or a separate caller.
-  # ollaya:
-  #   image: ghcr.io/ollaya-dev/ollaya:0.7.2
-  #   container_name: ollaya
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ollaya-data:/home/ollaya/.ollaya
-  #   ports:
-  #     - "127.0.0.1:11435:11435"
-  #   networks: [ai]
-
-  tsdproxy:
-    # Pin to the stable v2 line. "latest" currently tracks 3.0.0-beta and
-    # changes label/architecture behavior (gateway nodes, naming).
-    image: almeidapaulopt/tsdproxy:${TSDPROXY_TAG:-2.3.4}
-    container_name: tsdproxy
-    restart: unless-stopped
-    # Numeric IDs: the image has no passwd entry named "root".
-    user: "0:0"
-    ports:
-      - "127.0.0.1:${TSDPROXY_LOCAL_PORT:-8080}:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - tsdproxy-data:/data
-      - tsdproxy-tmp:/tmp
-      - ./config/tsdproxy:/config
-    networks: [ai]
-
-networks:
-  ai:
-    name: personal-agentic-ai
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: "1.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  open-webui-data:
   bifrost-data:
-  # ollaya-data:
-  tsdproxy-data:
-  tsdproxy-tmp:

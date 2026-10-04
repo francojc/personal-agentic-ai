@@ -1,21 +1,22 @@
+# Credentials and local state
 .env
-
-# Local deployment inventory; never commit host identifiers or operator secrets.
-/discovery.local.md
-
+.env.*
+!.env.example
+secrets/
+backups/
+data/
+vendor/
+workspace/
+discovery.local.md
+# Preserved legacy local proxy state; not used by fresh runbook.
+config/tsdproxy/tsdproxy.yaml
+*.key
+*.pem
+*.log
 *.bak
+*.local.md
+
+# Editor/agent/generated files
 .DS_Store
 Thumbs.db
 .aider*
-
-# Default dev-container workspace (override with DEV_WORKSPACE).
-workspace/
-
-# TSDProxy writes runtime config/state here.
-config/tsdproxy/tsdproxy.yaml
-
-# Slide build output.
-slides/dist/
-
-# Pinned Multica checkout (fetched by scripts/paos.sh vendor-fetch).
-vendor/
